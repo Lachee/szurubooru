@@ -65,6 +65,10 @@ user_name_regex: '^[a-zA-Z0-9_-]{1,32}$'
 webhooks:
     # - https://api.example.com/webhooks/
 
+# default token expiry for all logins, in seconds. 0 means tokens never expire.
+# can be overridden per-login-method (e.g. oidc.expires)
+token_expiry: 0
+
 default_rank: regular
 
 privileges:
@@ -191,6 +195,9 @@ oidc:
     # OIDC claim containing the user's avatar/profile picture URL
     # standard value is 'picture'; leave blank to disable avatar import
     avatar_claim: picture
+    # OIDC login token expiry, in seconds. 0 means no expiry.
+    # Overrides the global token_expiry for OIDC logins. If unset, falls back to token_expiry.
+    expires: 21600
 
 ## ONLY SET THESE IF DEPLOYING OUTSIDE OF DOCKER
 #debug: 0 # generate server logs?
