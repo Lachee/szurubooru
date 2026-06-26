@@ -21,6 +21,9 @@ const fields = [
     "commentCount",
     "tags",
     "version",
+    "stackId",
+    "stackOrder",
+    "stacked",
 ];
 
 class PostListController {

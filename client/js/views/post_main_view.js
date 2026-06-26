@@ -28,15 +28,23 @@ class PostMainView {
         const topNavigationNode =
             document.body.querySelector("#top-navigation");
 
+        const rightPanelNode = this._hostNode.querySelector(
+            ".stack-side-next"
+        );
+
         this._postContentControl = new PostContentControl(
             postContainerNode,
             ctx.post,
             () => {
                 const margin = sidebarNode.getBoundingClientRect().left;
+                const rightPanelWidth = rightPanelNode
+                    ? rightPanelNode.getBoundingClientRect().width
+                    : 0;
 
                 return [
                     window.innerWidth -
                         postContainerNode.getBoundingClientRect().left -
+                        rightPanelWidth -
                         margin,
                     iosCorrectedInnerHeight() -
                         topNavigationNode.getBoundingClientRect().height -
@@ -58,8 +66,27 @@ class PostMainView {
         this._installCommentForm();
         this._installComments(ctx.post.comments);
 
+        const stackedItems =
+            !ctx.editMode &&
+            ctx.post.stacked &&
+            ctx.post.stacked.length > 1
+                ? ctx.post.stacked
+                : [];
+        const currentStackIdx = stackedItems.findIndex(
+            (s) => s.id === ctx.post.id
+        );
+        const prevStackItem =
+            currentStackIdx > 0 ? stackedItems[currentStackIdx - 1] : null;
+        const nextStackItem =
+            currentStackIdx >= 0 &&
+            currentStackIdx < stackedItems.length - 1
+                ? stackedItems[currentStackIdx + 1]
+                : null;
+
         const showPreviousImage = () => {
-            if (ctx.prevPostId) {
+            if (prevStackItem) {
+                router.show(ctx.getPostUrl(prevStackItem.id, ctx.parameters));
+            } else if (ctx.prevPostId) {
                 if (ctx.editMode) {
                     router.show(
                         ctx.getPostEditUrl(ctx.prevPostId, ctx.parameters)
@@ -73,7 +100,9 @@ class PostMainView {
         };
 
         const showNextImage = () => {
-            if (ctx.nextPostId) {
+            if (nextStackItem) {
+                router.show(ctx.getPostUrl(nextStackItem.id, ctx.parameters));
+            } else if (ctx.nextPostId) {
                 if (ctx.editMode) {
                     router.show(
                         ctx.getPostEditUrl(ctx.nextPostId, ctx.parameters)

@@ -147,6 +147,11 @@ privileges:
     'pools:merge':                  moderator
     'pools:delete':                 moderator
 
+    'post-stacks:create':           power
+    'post-stacks:edit:posts':       power
+    'post-stacks:view':             anonymous
+    'post-stacks:delete':           moderator
+
     'pool_categories:create':       moderator
     'pool_categories:edit:name':    moderator
     'pool_categories:edit:color':   moderator

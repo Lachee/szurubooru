@@ -11,6 +11,7 @@ from szurubooru.model.post import (
     PostRelation,
     PostScore,
     PostSignature,
+    PostStack,
     PostTag,
 )
 from szurubooru.model.snapshot import Snapshot

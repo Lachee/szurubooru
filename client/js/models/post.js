@@ -122,6 +122,18 @@ class Post extends events.EventTarget {
         return this._relations;
     }
 
+    get stackId() {
+        return this._stackId;
+    }
+
+    get stackOrder() {
+        return this._stackOrder;
+    }
+
+    get stacked() {
+        return this._stacked;
+    }
+
     get pools() {
         return this._pools;
     }
@@ -485,6 +497,10 @@ class Post extends events.EventTarget {
 
             _flags: [...(response.flags || [])],
             _relations: [...(response.relations || [])],
+
+            _stackId: response.stackId || null,
+            _stackOrder: response.stackOrder || 0,
+            _stacked: response.stacked || null,
 
             _score: response.score,
             _commentCount: response.commentCount,

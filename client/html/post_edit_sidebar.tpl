@@ -42,6 +42,18 @@
             </section>
         <% } %>
 
+        <% if (ctx.canEditStackPosts) { %>
+            <section class='stack'>
+                <%= ctx.makeTextInput({
+                    text: 'Stack',
+                    name: 'stack',
+                    placeholder: 'space-separated post IDs',
+                    pattern: '^[0-9 ]*$',
+                    value: ctx.post.stacked ? ctx.post.stacked.map(s => s.id).join(' ') : '',
+                }) %>
+            </section>
+        <% } %>
+
         <% if (ctx.canEditPostFlags && ctx.post.type === 'video') { %>
             <section class='flags'>
                 <label>Miscellaneous</label>

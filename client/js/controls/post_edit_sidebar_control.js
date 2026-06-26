@@ -1,6 +1,7 @@
 "use strict";
 
 const api = require("../api.js");
+const uri = require("../util/uri.js");
 const events = require("../events.js");
 const misc = require("../util/misc.js");
 const views = require("../util/views.js");
@@ -42,6 +43,7 @@ class PostEditSidebarControl extends events.EventTarget {
                 canEditPostContent: api.hasPrivilege("posts:edit:content"),
                 canEditPostThumbnail: api.hasPrivilege("posts:edit:thumbnail"),
                 canEditPoolPosts: api.hasPrivilege("pools:edit:posts"),
+                canEditStackPosts: api.hasPrivilege("post-stacks:edit:posts"),
                 canCreateAnonymousPosts: api.hasPrivilege(
                     "posts:create:anonymous"
                 ),
@@ -55,7 +57,7 @@ class PostEditSidebarControl extends events.EventTarget {
             "post-info",
             "Basic info",
             this._hostNode.querySelectorAll(
-                ".safety, .relations, .flags, .post-source"
+                ".safety, .relations, .stack, .flags, .post-source"
             )
         );
         this._tagsExpander = new ExpanderControl(
@@ -393,50 +395,106 @@ class PostEditSidebarControl extends events.EventTarget {
 
     _evtSubmit(e) {
         e.preventDefault();
-        this.dispatchEvent(
-            new CustomEvent("submit", {
-                detail: {
-                    post: this._post,
 
-                    safety: this._safetyButtonNodes.length
-                        ? Array.from(this._safetyButtonNodes)
-                              .filter((node) => node.checked)[0]
-                              .value.toLowerCase()
-                        : undefined,
+        this._handleStackChange()
+            .then((stackChanged) => {
+                this.dispatchEvent(
+                    new CustomEvent("submit", {
+                        detail: {
+                            post: this._post,
+                            stackChanged,
 
-                    flags: this._videoFlags,
+                            safety: this._safetyButtonNodes.length
+                                ? Array.from(this._safetyButtonNodes)
+                                      .filter((node) => node.checked)[0]
+                                      .value.toLowerCase()
+                                : undefined,
 
-                    tags: this._tagInputNode
-                        ? misc.splitByWhitespace(this._tagInputNode.value)
-                        : undefined,
+                            flags: this._videoFlags,
 
-                    pools: this._poolInputNode
-                        ? misc.splitByWhitespace(this._poolInputNode.value)
-                        : undefined,
+                            tags: this._tagInputNode
+                                ? misc.splitByWhitespace(
+                                      this._tagInputNode.value
+                                  )
+                                : undefined,
 
-                    relations: this._relationsInputNode
-                        ? misc
-                              .splitByWhitespace(
-                                  this._relationsInputNode.value
-                              )
-                              .map((x) => parseInt(x))
-                        : undefined,
+                            pools: this._poolInputNode
+                                ? misc.splitByWhitespace(
+                                      this._poolInputNode.value
+                                  )
+                                : undefined,
 
-                    content: this._newPostContent
-                        ? this._newPostContent
-                        : undefined,
+                            relations: this._relationsInputNode
+                                ? misc
+                                      .splitByWhitespace(
+                                          this._relationsInputNode.value
+                                      )
+                                      .map((x) => parseInt(x))
+                                : undefined,
 
-                    thumbnail:
-                        this._newPostThumbnail !== undefined && this._newPostThumbnail !== null
-                            ? this._newPostThumbnail
-                            : undefined,
+                            content: this._newPostContent
+                                ? this._newPostContent
+                                : undefined,
 
-                    source: this._sourceInputNode
-                        ? this._sourceInputNode.value
-                        : undefined,
-                },
+                            thumbnail:
+                                this._newPostThumbnail !== undefined &&
+                                this._newPostThumbnail !== null
+                                    ? this._newPostThumbnail
+                                    : undefined,
+
+                            source: this._sourceInputNode
+                                ? this._sourceInputNode.value
+                                : undefined,
+                        },
+                    })
+                );
             })
-        );
+            .catch((err) => {
+                this.showError(err.message || "Failed to update stack.");
+                this.enableForm();
+            });
+    }
+
+    _handleStackChange() {
+        if (!this._stackInputNode) {
+            return Promise.resolve(false);
+        }
+        const newIds = misc
+            .splitByWhitespace(this._stackInputNode.value)
+            .map((x) => parseInt(x))
+            .filter((x) => !isNaN(x));
+        const oldIds = this._post.stacked
+            ? this._post.stacked.map((s) => s.id)
+            : [];
+
+        const same =
+            newIds.length === oldIds.length &&
+            newIds.every((id, i) => id === oldIds[i]);
+        if (same) {
+            return Promise.resolve(false);
+        }
+
+        const stackId = this._post.stackId;
+
+        if (newIds.length < 2) {
+            if (stackId) {
+                return api
+                    .delete(uri.formatApiLink("post-stack", stackId))
+                    .then(() => true);
+            }
+            return Promise.resolve(false);
+        }
+
+        if (stackId) {
+            return api
+                .put(uri.formatApiLink("post-stack", stackId), {
+                    posts: newIds,
+                })
+                .then(() => true);
+        }
+        return api
+            .post(uri.formatApiLink("post-stacks"), { posts: newIds })
+            .then(() => true);
     }
 
     get _formNode() {
@@ -483,6 +541,10 @@ class PostEditSidebarControl extends events.EventTarget {
 
     get _relationsInputNode() {
         return this._formNode.querySelector(".relations input");
+    }
+
+    get _stackInputNode() {
+        return this._formNode.querySelector(".stack input[name=stack]");
     }
 
     get _contentInputNode() {
