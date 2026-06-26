@@ -111,6 +111,13 @@ class PostNote(Base):
     post = sa.orm.relationship("Post")
 
 
+class PostStack(Base):
+    __tablename__ = "post_stack"
+
+    stack_id = sa.Column("id", sa.Integer, primary_key=True)
+    creation_time = sa.Column("creation_time", sa.DateTime, nullable=False)
+
+
 class PostRelation(Base):
     __tablename__ = "post_relation"
 
@@ -222,6 +229,16 @@ class Post(Base):
     canvas_width = sa.Column("image_width", sa.Integer)
     canvas_height = sa.Column("image_height", sa.Integer)
     mime_type = sa.Column("mime-type", sa.Unicode(32), nullable=False)
+    stack_id = sa.Column(
+        "stack_id",
+        sa.Integer,
+        sa.ForeignKey("post_stack.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    stack_order = sa.Column(
+        "stack_order", sa.Integer, nullable=False, default=0, server_default="0"
+    )
 
     # foreign tables
     user = sa.orm.relationship("User")
@@ -261,6 +278,15 @@ class Post(Base):
         back_populates="post",
     )
     pools = association_proxy("_pools", "pool")
+    stack = sa.orm.relationship(
+        "PostStack",
+        foreign_keys=[stack_id],
+        backref=sa.orm.backref(
+            "posts",
+            order_by="Post.stack_order",
+            lazy="dynamic",
+        ),
+    )
 
     # dynamic columns
     tag_count = sa.orm.column_property(

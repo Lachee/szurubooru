@@ -40,8 +40,58 @@
     >.content
         width: 100%
 
-    .post-container
+    .post-container-wrap
+        display: flex
+        flex-direction: row
+        align-items: stretch
         margin-bottom: 0.6em
+
+        .stack-side-panel
+            flex: 0 0 5em
+            position: relative
+            background-size: cover
+            background-position: center
+            cursor: pointer
+            opacity: 0.45
+            transition: opacity 0.2s, flex-basis 0.2s
+            border-radius: 3px
+            overflow: hidden
+            display: flex
+            align-items: center
+            justify-content: center
+            min-height: 8em
+
+            &:not(.disabled):hover
+                opacity: 0.75
+                flex-basis: 7em
+
+            &.disabled
+                opacity: 0.08
+                cursor: default
+                background: rgba(128, 128, 128, 0.15)
+
+            &::after
+                content: ''
+                position: absolute
+                inset: 0
+                background: rgba(0, 0, 0, 0.35)
+                pointer-events: none
+
+            i
+                position: relative
+                z-index: 1
+                font-size: 1.8em
+                color: white
+                text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8)
+
+            &.stack-side-prev
+                margin-right: 0.4em
+            &.stack-side-next
+                margin-left: 0.4em
+
+    .post-container
+        flex: 1
+        min-width: 0
 
         .post-content
             margin: 0
@@ -113,6 +163,59 @@
                 text-align: center
                 display: inline-block
                 width: 2em
+
+    .stack-carousel
+        margin-top: 2em
+        h1
+            margin-bottom: 0.5em
+
+        .stack-carousel-strip
+            display: flex
+            overflow-x: auto
+            gap: 0.3em
+            padding-bottom: 0.3em
+            scrollbar-width: thin
+
+            .stack-carousel-item
+                flex: 0 0 auto
+                width: 4em
+                height: 3em
+                display: block
+                outline-offset: -2px
+                opacity: 0.65
+                transition: opacity 0.15s
+                &:hover
+                    opacity: 0.9
+                &.active
+                    opacity: 1
+                    outline: 2px solid $main-color
+                .thumbnail
+                    width: 4em
+                    height: 3em
+                    background-position: 50% 30%
+
+        .stack-carousel-nav
+            display: flex
+            align-items: center
+            gap: 0.5em
+            margin-top: 0.4em
+            font-size: 90%
+
+            a, span
+                display: inline-flex
+                align-items: center
+                justify-content: center
+                width: 1.8em
+                height: 1.8em
+            span.disabled
+                opacity: 0.3
+                cursor: default
+            .stack-pos
+                width: auto
+                flex: 1
+                text-align: center
+                font-size: 85%
+                opacity: 0.75
 
     .relations
         margin-top: 2em

@@ -158,6 +158,35 @@
                 .thumbnail
                     outline: 4px solid $main-color !important
 
+.post-list li.stacked
+    .stack-peek
+        position: absolute
+        inset: 0
+        background-size: cover
+        background-position: 50% 30%
+        box-shadow: 0 0 0 1px rgba(0,0,0,0.2)
+        &[data-depth='1']
+            transform: rotate(-3deg) translate(-5px, 5px)
+            z-index: 0
+        &[data-depth='2']
+            transform: rotate(-6deg) translate(-10px, 10px)
+            z-index: -1
+
+    .thumbnail-wrapper
+        position: relative
+        z-index: 1
+
+    .stack-count
+        position: absolute
+        top: 0.5em
+        right: 0.5em
+        padding: 0.2em 0.4em
+        background: rgba(0,0,0,0.55)
+        color: white
+        font-size: 75%
+        i
+            margin-right: 0.25em
+
 .post-flow
     ul
         li

@@ -202,9 +202,13 @@ class PostMainController extends BasePostController {
         }
         post.save().then(
             () => {
-                this._view.sidebarControl.showSuccess("Post saved.");
-                this._view.sidebarControl.enableForm();
-                misc.disableExitConfirmation();
+                if (e.detail.stackChanged) {
+                    window.location.reload();
+                } else {
+                    this._view.sidebarControl.showSuccess("Post saved.");
+                    this._view.sidebarControl.enableForm();
+                    misc.disableExitConfirmation();
+                }
             },
             (error) => {
                 this._view.sidebarControl.showError(error.message);

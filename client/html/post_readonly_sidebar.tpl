@@ -68,6 +68,44 @@
         </section>
     </article>
 
+    <% if (ctx.post.stacked && ctx.post.stacked.length > 1) { %>
+        <nav class='stack-carousel'>
+            <h1>Stack (<%= ctx.post.stacked.length %>)</h1>
+            <div class='stack-carousel-strip'><!--
+                --><% for (let item of ctx.post.stacked) { %><!--
+                    --><a class='stack-carousel-item<%= item.id === ctx.post.id ? " active" : "" %>'
+                          href='<%= ctx.getPostUrl(item.id, ctx.parameters) %>'
+                          title='@<%- item.id %>'><!--
+                        --><%= ctx.makeThumbnail(item.thumbnailUrl) %><!--
+                    --></a><!--
+                --><% } %><!--
+            --></div>
+            <%
+                const stackedIds = ctx.post.stacked.map(s => s.id);
+                const currentIdx = stackedIds.indexOf(ctx.post.id);
+                const prevItem = currentIdx > 0 ? ctx.post.stacked[currentIdx - 1] : null;
+                const nextItem = currentIdx < stackedIds.length - 1 ? ctx.post.stacked[currentIdx + 1] : null;
+            %>
+            <div class='stack-carousel-nav'>
+                <% if (prevItem) { %>
+                    <a class='stack-prev' href='<%= ctx.getPostUrl(prevItem.id, ctx.parameters) %>'>
+                        <i class='fa fa-chevron-left'></i>
+                    </a>
+                <% } else { %>
+                    <span class='stack-prev disabled'><i class='fa fa-chevron-left'></i></span>
+                <% } %>
+                <span class='stack-pos'><%- currentIdx + 1 %> / <%- ctx.post.stacked.length %></span>
+                <% if (nextItem) { %>
+                    <a class='stack-next' href='<%= ctx.getPostUrl(nextItem.id, ctx.parameters) %>'>
+                        <i class='fa fa-chevron-right'></i>
+                    </a>
+                <% } else { %>
+                    <span class='stack-next disabled'><i class='fa fa-chevron-right'></i></span>
+                <% } %>
+            </div>
+        </nav>
+    <% } %>
+
     <% if (ctx.post.relations.length) { %>
         <nav class='relations'>
             <h1>Relations (<%- ctx.post.relations.length %>)</h1>

@@ -78,6 +78,10 @@ class InvalidPostFlagError(errors.ValidationError):
     pass
 
 
+class InvalidPostStackError(errors.ValidationError):
+    pass
+
+
 SAFETY_MAP = {
     model.Post.SAFETY_SAFE: "safe",
     model.Post.SAFETY_SKETCHY: "sketchy",
@@ -199,6 +203,9 @@ class PostSerializer(serialization.BaseSerializer):
             "notes": self.serialize_notes,
             "comments": self.serialize_comments,
             "pools": self.serialize_pools,
+            "stackId": self.serialize_stack_id,
+            "stackOrder": self.serialize_stack_order,
+            "stacked": self.serialize_stacked,
         }
 
     def serialize_id(self) -> Any:
@@ -342,6 +349,30 @@ class PostSerializer(serialization.BaseSerializer):
             for pool in sorted(
                 self.post.pools, key=lambda pool: pool.creation_time
             )
+        ]
+
+    def serialize_stack_id(self) -> Any:
+        return self.post.stack_id
+
+    def serialize_stack_order(self) -> Any:
+        return self.post.stack_order
+
+    def serialize_stacked(self) -> Any:
+        if self.post.stack_id is None:
+            return None
+        stack_posts = (
+            db.session.query(model.Post)
+            .filter(model.Post.stack_id == self.post.stack_id)
+            .order_by(model.Post.stack_order)
+            .all()
+        )
+        return [
+            {
+                "id": p.post_id,
+                "thumbnailUrl": get_post_thumbnail_url(p),
+                "stackOrder": p.stack_order,
+            }
+            for p in stack_posts
         ]
 
 
@@ -733,6 +764,98 @@ def update_post_relations(post: model.Post, new_post_ids: List[int]) -> None:
     for relation in relations_to_add:
         post.relations.append(relation)
         relation.relations.append(post)
+
+
+def get_stack_by_id(stack_id: int) -> model.PostStack:
+    stack = (
+        db.session.query(model.PostStack)
+        .filter(model.PostStack.stack_id == stack_id)
+        .one_or_none()
+    )
+    if not stack:
+        raise InvalidPostStackError("Stack %r not found." % stack_id)
+    return stack
+
+
+def create_stack(post_ids: List[int]) -> model.PostStack:
+    from datetime import datetime
+
+    if len(post_ids) < 2:
+        raise InvalidPostStackError("A stack must contain at least 2 posts.")
+    posts_in_stack = (
+        db.session.query(model.Post)
+        .filter(model.Post.post_id.in_(post_ids))
+        .all()
+    )
+    if len(posts_in_stack) != len(post_ids):
+        raise InvalidPostStackError("One or more posts do not exist.")
+    stack = model.PostStack()
+    stack.creation_time = datetime.utcnow()
+    db.session.add(stack)
+    db.session.flush()
+    id_order = {v: k for k, v in enumerate(post_ids)}
+    for post in posts_in_stack:
+        post.stack_id = stack.stack_id
+        post.stack_order = id_order[post.post_id]
+    _sync_stack_relations(posts_in_stack)
+    return stack
+
+
+def update_stack_posts(stack: model.PostStack, post_ids: List[int]) -> None:
+    if len(post_ids) < 2:
+        raise InvalidPostStackError("A stack must contain at least 2 posts.")
+    new_posts = (
+        db.session.query(model.Post)
+        .filter(model.Post.post_id.in_(post_ids))
+        .all()
+    )
+    if len(new_posts) != len(post_ids):
+        raise InvalidPostStackError("One or more posts do not exist.")
+    old_posts = (
+        db.session.query(model.Post)
+        .filter(model.Post.stack_id == stack.stack_id)
+        .all()
+    )
+    for post in old_posts:
+        post.stack_id = None
+        post.stack_order = 0
+    id_order = {v: k for k, v in enumerate(post_ids)}
+    for post in new_posts:
+        post.stack_id = stack.stack_id
+        post.stack_order = id_order[post.post_id]
+    _sync_stack_relations(new_posts)
+
+
+def update_post_stack_order(post: model.Post, new_order: int) -> None:
+    assert post
+    if post.stack_id is None:
+        raise InvalidPostStackError("Post is not part of a stack.")
+    post.stack_order = new_order
+
+
+def delete_stack(stack: model.PostStack) -> None:
+    posts_in_stack = (
+        db.session.query(model.Post)
+        .filter(model.Post.stack_id == stack.stack_id)
+        .all()
+    )
+    for post in posts_in_stack:
+        post.stack_id = None
+        post.stack_order = 0
+    db.session.delete(stack)
+
+
+def _sync_stack_relations(stack_posts: List[model.Post]) -> None:
+    for i, post in enumerate(stack_posts):
+        for other in stack_posts:
+            if other.post_id == post.post_id:
+                continue
+            already_related = any(
+                r.post_id == other.post_id for r in post.relations
+            )
+            if not already_related:
+                post.relations.append(other)
+                other.relations.append(post)
 
 
 def update_post_notes(post: model.Post, notes: Any) -> None:

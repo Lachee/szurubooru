@@ -10,10 +10,33 @@ class PostsPageView extends events.EventTarget {
         super();
         this._ctx = ctx;
         this._hostNode = ctx.hostNode;
+
+        // Deduplicate stacked posts: among posts sharing a stackId, show only
+        // the one with the lowest stackOrder in this page's results.
+        const seenStacks = new Map();
+        const displayResults = [];
+        for (const post of ctx.response.results) {
+            if (post.stackId != null) {
+                const existing = seenStacks.get(post.stackId);
+                if (!existing) {
+                    seenStacks.set(post.stackId, post);
+                    displayResults.push(post);
+                } else if (post.stackOrder < existing.stackOrder) {
+                    const idx = displayResults.indexOf(existing);
+                    displayResults[idx] = post;
+                    seenStacks.set(post.stackId, post);
+                }
+                // else skip secondary
+            } else {
+                displayResults.push(post);
+            }
+        }
+        ctx.displayResults = displayResults;
+
         views.replaceContent(this._hostNode, template(ctx));
 
         this._postIdToPost = {};
-        for (let post of ctx.response.results) {
+        for (let post of ctx.displayResults) {
             this._postIdToPost[post.id] = post;
             post.addEventListener("change", (e) => this._evtPostChange(e));
         }

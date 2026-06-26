@@ -1,10 +1,20 @@
 <% if (ctx.postFlow) { %><div class='post-list post-flow'><% } else { %><div class='post-list'><% } %>
-    <% if (ctx.response.results.length) { %>
+    <% if (ctx.displayResults.length) { %>
         <ul>
-            <% for (let post of ctx.response.results) { %>
-                <li data-post-id='<%= post.id %>'>
+            <% for (let post of ctx.displayResults) { %>
+                <%
+                    const isStacked = post.stacked && post.stacked.length > 1;
+                    const stackPeeks = isStacked ? post.stacked.filter(s => s.id !== post.id).slice(0, 2) : [];
+                %>
+                <li data-post-id='<%= post.id %>'<% if (isStacked) { %> class='stacked'<% } %>>
+                    <% if (isStacked) { %>
+                        <% for (let i = stackPeeks.length - 1; i >= 0; i--) { %>
+                            <div class='stack-peek' data-depth='<%- i + 1 %>'
+                                style='background-image: url(<%- stackPeeks[i].thumbnailUrl %>)'></div>
+                        <% } %>
+                    <% } %>
                     <a class='thumbnail-wrapper <%= post.tags.length > 0 ? "tags" : "no-tags" %>'
-                            title='@<%- post.id %> (<%- post.type %>)&#10;&#10;Tags: <%- post.tags.map(tag => '#' + tag.names[0]).join(' ') || 'none' %>'
+                            title='@<%- post.id %> (<%- post.type %>)<% if (isStacked) { %> — stack of <%- post.stacked.length %><% } %>&#10;&#10;Tags: <%- post.tags.map(tag => '#' + tag.names[0]).join(' ') || 'none' %>'
                             href='<%= ctx.canViewPosts ? ctx.getPostUrl(post.id, ctx.parameters) : '' %>'>
                         <%= ctx.makeThumbnail(post.thumbnailUrl) %>
                         <span class='type' data-type='<%- post.type %>'>
@@ -35,6 +45,9 @@
                                     </span>
                                 <% } %>
                             </span>
+                        <% } %>
+                        <% if (isStacked) { %>
+                            <span class='stack-count'><i class='fa fa-clone'></i> <%- post.stacked.length %></span>
                         <% } %>
                     </a>
                     <span class='edit-overlay'>
