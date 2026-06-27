@@ -60,6 +60,7 @@
             align-items: center
             justify-content: center
             min-height: 8em
+            flex-grow: 0
 
             &:not(.disabled):hover
                 opacity: 0.75
@@ -119,6 +120,22 @@
             margin-right: 0
         >.content
             order: 1
+
+    .post-container-wrap
+        flex-wrap: wrap
+        row-gap: 0.4em
+        .post-container
+            order: 1
+            flex: 0 0 100%
+        .stack-side-panel
+            order: 2
+            flex: 1
+            flex-grow: 1 !important
+            min-height: 3.5em
+            &.stack-side-prev
+                margin-right: 0.2em
+            &.stack-side-next
+                margin-left: 0.2em
 
 
 .post-view .readonly-sidebar

@@ -35,8 +35,10 @@ class PostsPageView extends events.EventTarget {
 
         views.replaceContent(this._hostNode, template(ctx));
 
+        // Index ALL results so secondary stack members are available for
+        // mixed-state detection and bulk-tag application.
         this._postIdToPost = {};
-        for (let post of ctx.displayResults) {
+        for (let post of ctx.response.results) {
             this._postIdToPost[post.id] = post;
             post.addEventListener("change", (e) => this._evtPostChange(e));
         }
@@ -92,10 +94,19 @@ class PostsPageView extends events.EventTarget {
 
     _evtPostChange(e) {
         const listItemNode = this._postIdToListItemNode[e.detail.post.id];
-        for (let node of listItemNode.querySelectorAll("[data-disabled]")) {
-            node.removeAttribute("data-disabled");
+        if (listItemNode) {
+            for (let node of listItemNode.querySelectorAll("[data-disabled]")) {
+                node.removeAttribute("data-disabled");
+            }
         }
         this._syncBulkEditorsHighlights();
+    }
+
+    _getStackPosts(post) {
+        if (!post.stacked || post.stacked.length <= 1) return [post];
+        return post.stacked
+            .map((s) => this._postIdToPost[s.id])
+            .filter(Boolean);
     }
 
     _evtBulkEditTagsClick(e, post) {
@@ -105,13 +116,16 @@ class PostsPageView extends events.EventTarget {
             return;
         }
         linkNode.setAttribute("data-disabled", true);
+        const isTagged = linkNode.classList.contains("tagged");
+        const stackPosts = this._getStackPosts(post);
+        const cachedIds = new Set(stackPosts.map((p) => p.id));
+        const missingIds = post.stacked
+            ? post.stacked.map((s) => s.id).filter((id) => !cachedIds.has(id))
+            : [];
         this.dispatchEvent(
-            new CustomEvent(
-                linkNode.classList.contains("tagged") ? "untag" : "tag",
-                {
-                    detail: { post: post },
-                }
-            )
+            new CustomEvent(isTagged ? "untag" : "tag", {
+                detail: { post, stackPosts, missingIds },
+            })
         );
     }
 
@@ -154,11 +168,17 @@ class PostsPageView extends events.EventTarget {
 
             const tagFlipperNode = this._getTagFlipperNode(listItemNode);
             if (tagFlipperNode) {
-                let tagged = true;
-                for (let tag of this._ctx.bulkEdit.tags) {
-                    tagged &= post.tags.isTaggedWith(tag);
-                }
-                tagFlipperNode.classList.toggle("tagged", tagged);
+                const stackPosts = this._getStackPosts(post);
+                const tagStates = stackPosts.map((p) =>
+                    this._ctx.bulkEdit.tags.every((t) => p.tags.isTaggedWith(t))
+                );
+                const allTagged = tagStates.every(Boolean);
+                const anyTagged = tagStates.some(Boolean);
+                tagFlipperNode.classList.toggle("tagged", allTagged);
+                tagFlipperNode.classList.toggle(
+                    "mixed",
+                    anyTagged && !allTagged
+                );
             }
 
             const safetyFlipperNode = this._getSafetyFlipperNode(listItemNode);

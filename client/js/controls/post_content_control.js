@@ -107,7 +107,7 @@ class PostContentControl {
             const buttons = document.querySelector(".sidebar > .buttons");
             if (buttons) {
                 const content = document.querySelector(".content");
-                content.insertBefore(buttons, content.querySelector(".post-container + *"));
+                content.insertBefore(buttons, content.querySelector(".post-container-wrap + *"));
 
                 const afterControls = document.querySelector(".content > .after-mobile-controls");
                 if (afterControls) {

@@ -76,7 +76,12 @@
                         &:after
                             color: white
                             content: '-'
-                    &:not(.tagged)
+                    &.mixed
+                        background: rgba(255, 140, 0, 0.7)
+                        &:after
+                            color: white
+                            content: '*'
+                    &:not(.tagged):not(.mixed)
                         background: rgba(255, 0, 0, 0.7)
                         &:after
                             color: white
@@ -175,6 +180,9 @@
     .thumbnail-wrapper
         position: relative
         z-index: 1
+
+    .edit-overlay
+        z-index: 2
 
     .stack-count
         position: absolute

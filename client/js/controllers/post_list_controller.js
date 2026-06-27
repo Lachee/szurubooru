@@ -4,6 +4,7 @@ const router = require("../router.js");
 const api = require("../api.js");
 const settings = require("../models/settings.js");
 const uri = require("../util/uri.js");
+const Post = require("../models/post.js");
 const PostList = require("../models/post_list.js");
 const topNavigation = require("../models/top_navigation.js");
 const PageController = require("../controllers/page_controller.js");
@@ -85,19 +86,49 @@ class PostListController {
         this._syncPageController();
     }
 
+    _resolveStackPosts(e) {
+        const cached = e.detail.stackPosts || [e.detail.post];
+        const missing = (e.detail.missingIds || []).map((id) =>
+            Post.get(id, { fields: "id,tags,version" })
+        );
+        return Promise.all(missing).then((fetched) => [...cached, ...fetched]);
+    }
+
     _evtTag(e) {
-        Promise.all(
-            this._bulkEditTags.map((tag) => e.detail.post.tags.addByName(tag))
-        )
-            .then(e.detail.post.save())
+        this._resolveStackPosts(e)
+            .then((posts) =>
+                Promise.all(
+                    posts.map((post) => {
+                        const missing = this._bulkEditTags.filter(
+                            (t) => !post.tags.isTaggedWith(t)
+                        );
+                        if (!missing.length) return Promise.resolve();
+                        return Promise.all(
+                            missing.map((tag) => post.tags.addByName(tag))
+                        ).then(() => post.save());
+                    })
+                )
+            )
             .catch((error) => window.alert(error.message));
     }
 
     _evtUntag(e) {
-        for (let tag of this._bulkEditTags) {
-            e.detail.post.tags.removeByName(tag);
-        }
-        e.detail.post.save().catch((error) => window.alert(error.message));
+        this._resolveStackPosts(e)
+            .then((posts) =>
+                Promise.all(
+                    posts.map((post) => {
+                        const present = this._bulkEditTags.filter((t) =>
+                            post.tags.isTaggedWith(t)
+                        );
+                        if (!present.length) return Promise.resolve();
+                        for (let tag of present) {
+                            post.tags.removeByName(tag);
+                        }
+                        return post.save();
+                    })
+                )
+            )
+            .catch((error) => window.alert(error.message));
     }
 
     _evtChangeSafety(e) {
