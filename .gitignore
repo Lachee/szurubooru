@@ -2,6 +2,12 @@
 config.yaml
 .env
 
+# User-specific cached data and SQL from testing
+_*/
+
+# IDE Specific configs
+.idea
+
 # Client Development Artifacts
 */*_modules/
 client/public

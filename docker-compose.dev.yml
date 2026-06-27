@@ -21,7 +21,7 @@ services:
       #POSTGRES_DB: defaults to same as POSTGRES_USER
       #POSTGRES_PORT: 5432
       #LOG_SQL: 0 (1 for verbose SQL logs)
-      THREADS:
+      THREADS: 4
     volumes:
       - "data:/data"
       - "./server/:/opt/app/"
@@ -36,6 +36,8 @@ services:
       - "data:/data:ro"
       - "./client/:/opt/app/"
       - "/opt/app/public/"
+    environment:
+      BACKEND_HOST: server
     ports:
       - "${PORT}:80"
       - "8081:8081"
