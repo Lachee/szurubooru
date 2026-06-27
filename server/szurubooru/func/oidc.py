@@ -307,6 +307,10 @@ def exchange_code(
 
     token = user_tokens.create_user_token(user, enabled=True)
     token.note = "OIDC Login"
+    oidc_expiry = oidc.get("expires")
+    if oidc_expiry is None:
+        oidc_expiry = config.config.get("token_expiry") or 0
+    user_tokens.apply_expiry_seconds(token, int(oidc_expiry))
     db.session.add(token)
     user.last_login_time = datetime.utcnow()
     db.session.commit()
