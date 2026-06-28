@@ -13,6 +13,7 @@ RUN apk --no-cache add \
         libheif-dev \
         libavif \
         libavif-dev \
+        libmagic \
         ffmpeg \
         # from requirements.txt: \
         py3-yaml \
@@ -20,6 +21,7 @@ RUN apk --no-cache add \
         py3-sqlalchemy \
         py3-certifi \
         py3-numpy \
+        py3-magic \
         py3-pillow \
         py3-pynacl \
         py3-tz \
