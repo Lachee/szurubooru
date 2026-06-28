@@ -1,4 +1,4 @@
-name: Build Docker containers
+name: Build Client
 on:
   push:
     branches:
