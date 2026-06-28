@@ -28,11 +28,8 @@ jobs:
       # ::: Build and Push Image :::
       - name: Determine metadata
         run: |
-          CLOSEST_VER="$(git describe --tags --abbrev=0 $GITHUB_SHA)"
-          CLOSEST_MAJOR_VER="$(echo ${CLOSEST_VER} | cut -d'.' -f1)"
-          CLOSEST_MINOR_VER="$(echo ${CLOSEST_VER} | cut -d'.' -f2)"
           SHORT_COMMIT=$(echo $GITHUB_SHA | cut -c1-8)
-          BUILD_INFO="v${CLOSEST_VER}-${SHORT_COMMIT}"
+          BUILD_INFO="dev-${SHORT_COMMIT}"
           BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           echo "build_info=${BUILD_INFO}" >> $GITHUB_ENV
           echo "build_date=${BUILD_DATE}" >> $GITHUB_ENV
