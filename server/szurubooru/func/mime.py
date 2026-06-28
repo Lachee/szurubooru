@@ -13,7 +13,14 @@ def get_extension(mime_type: str) -> Optional[str]:
     extension_map = {
         "application/octet-stream": "dat",
     }
-    return extension_map.get((mime_type or "").strip().lower(), mimetypes.guess_extension(mime_type or "")[1:].strip().lower())
+
+    ext = extension_map.get((mime_type or "").strip().lower(), None)
+    if ext is None:
+        guess = mimetypes.guess_extension(mime_type or "", strict=False)
+        if guess is not None:
+            ext = guess[1:]
+
+    return ext
 
 
 def is_flash(mime_type: str) -> bool:
