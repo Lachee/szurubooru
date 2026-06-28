@@ -3,6 +3,11 @@ on:
   push:
     branches:
       - features
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-client:
     name: Build Client
