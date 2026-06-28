@@ -62,7 +62,7 @@ jobs:
       - name: 🐳 Build docker image
         uses: docker/build-push-action@v5
         with:
-          file: Dockerfile
+          context: client
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
