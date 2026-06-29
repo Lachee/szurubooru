@@ -19,13 +19,25 @@ mimetypes.add_type("video/mp4", ".mp4")
 mimetypes.add_type("video/quicktime", ".mov")
 mimetypes.add_type("video/webm", ".webm")
 
+EBML_MAGIC = b"\x1a\x45\xdf\xa3"
+
 def get_mime_type(content: bytes) -> str:
     if not content:
         return "application/octet-stream"
+
+    # WebM are inside a EBML and share a common magic with a lot of files.
+    # We have to inspect deeper to see if it is a webm specifically.
+    if content[:4] == EBML_MAGIC:
+        idx = content[:1024].find(b"\x42\x82")   # DocType element ID
+        if idx != -1 and b"webm" in content[idx + 2 : idx + 14]:
+            return "video/webm"
+
     return magic.from_buffer(content, mime=True)
 
 
 def get_extension(mime_type: str) -> Optional[str]:
+    if mime_type == "application/octet-stream":
+        return "dat"
     guess = mimetypes.guess_extension(mime_type or "", strict=False)
     if guess is None:
         return None

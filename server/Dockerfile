@@ -1,6 +1,5 @@
 ARG ALPINE_VERSION=3.13
 
-
 FROM alpine:$ALPINE_VERSION AS prereqs
 WORKDIR /opt/app
 
@@ -14,6 +13,7 @@ RUN apk --no-cache add \
         libavif \
         libavif-dev \
         libmagic \
+        file \
         ffmpeg \
         # from requirements.txt: \
         py3-yaml \
@@ -35,9 +35,18 @@ RUN pip3 install --no-cache-dir --disable-pip-version-check \
         "pillow-avif-plugin~=1.1.0"
 RUN apk --no-cache del py3-pip
 
-COPY ./ /opt/app/
-RUN rm -rf /opt/app/szurubooru/tests
+ARG FILE5_VERSION=48
+RUN apk --no-cache add autoconf automake libtool \
+ && wget -qO- https://github.com/file/file/archive/refs/tags/FILE5_${FILE5_VERSION}.tar.gz \
+    | tar xz -C /tmp \
+ && cd /tmp/file-FILE5_${FILE5_VERSION} \
+ && autoreconf -fi \
+ && ./configure --prefix=/usr \
+ && make -j$(nproc) install \
+ && rm -rf /tmp/file-FILE5_${FILE5_VERSION} \
+ && apk --no-cache del autoconf automake libtool
 
+COPY --exclude="tests" . /opt/app/
 
 FROM --platform=$BUILDPLATFORM prereqs AS testing
 WORKDIR /opt/app

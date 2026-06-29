@@ -20,7 +20,7 @@ from szurubooru.func import mime
         ("heif.heif", "image/heif"),
         ("heic.heic", "image/heic"),
         ("heic-heix.heic", "image/heic"),
-        ("text.txt", "application/octet-stream"),
+        ("text.txt", "text/plain"),
     ],
 )
 def test_get_mime_type(read_asset, input_path, expected_mime_type):
