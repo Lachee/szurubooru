@@ -3,6 +3,22 @@ from typing import Optional
 import magic
 import mimetypes
 
+mimetypes.add_type("application/octet-stream", ".dat")
+mimetypes.add_type("application/ogg", ".ogg")
+mimetypes.add_type("application/x-shockwave-flash", ".swf")
+mimetypes.add_type("image/avif", ".avif")
+mimetypes.add_type("image/bmp", ".bmp")
+mimetypes.add_type("image/gif", ".gif")
+mimetypes.add_type("image/heic", ".heic")
+mimetypes.add_type("image/heif", ".heif")
+mimetypes.add_type("image/jpeg", ".jpg")
+mimetypes.add_type("image/png", ".png")
+mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("video/m4v", ".mp4")         # Apple MV4 Container
+mimetypes.add_type("video/mp4", ".mp4")
+mimetypes.add_type("video/quicktime", ".mov")
+mimetypes.add_type("video/webm", ".webm")
+
 def get_mime_type(content: bytes) -> str:
     if not content:
         return "application/octet-stream"
@@ -10,17 +26,10 @@ def get_mime_type(content: bytes) -> str:
 
 
 def get_extension(mime_type: str) -> Optional[str]:
-    extension_map = {
-        "application/octet-stream": "dat",
-    }
-
-    ext = extension_map.get((mime_type or "").strip().lower(), None)
-    if ext is None:
-        guess = mimetypes.guess_extension(mime_type or "", strict=False)
-        if guess is not None:
-            ext = guess[1:]
-
-    return ext
+    guess = mimetypes.guess_extension(mime_type or "", strict=False)
+    if guess is None:
+        return None
+    return guess[1:]
 
 
 def is_flash(mime_type: str) -> bool:
@@ -30,6 +39,7 @@ def is_flash(mime_type: str) -> bool:
 def is_video(mime_type: str) -> bool:
     return mime_type.lower() in (
         "application/ogg",
+        "video/m4v"
         "video/mp4",
         "video/quicktime",
         "video/webm",
@@ -38,14 +48,14 @@ def is_video(mime_type: str) -> bool:
 
 def is_image(mime_type: str) -> bool:
     return mime_type.lower() in (
+        "image/avif",
+        "image/bmp",
+        "image/gif",
+        "image/heic",
+        "image/heif",
         "image/jpeg",
         "image/png",
-        "image/gif",
         "image/webp",
-        "image/bmp",
-        "image/avif",
-        "image/heif",
-        "image/heic",
     )
 
 
@@ -59,7 +69,8 @@ def is_animated_gif(content: bytes) -> bool:
 
 def is_heif(mime_type: str) -> bool:
     return mime_type.lower() in (
-        "image/heif",
-        "image/heic",
         "image/avif",
+        "image/heic",
+        "image/heif",
     )
+
