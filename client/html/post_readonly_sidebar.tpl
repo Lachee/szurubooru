@@ -45,6 +45,13 @@
             <a href class='fit-both'>both</a>
         </section>
 
+        <section>
+            Hotlink
+            <a rel='bookmark' href='<%- ctx.getPostUrl(ctx.post.id, ctx.parameters) %>'>
+                 #<%- ctx.post.id %>
+            </a>
+        </section>
+
         <% if (ctx.post.source) { %>
             <section class='source'>
                 Source: <% for (let i = 0; i < ctx.post.sourceSplit.length; i++) { %>
