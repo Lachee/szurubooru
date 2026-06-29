@@ -14,7 +14,8 @@ mimetypes.add_type("image/heif", ".heif")
 mimetypes.add_type("image/jpeg", ".jpg")
 mimetypes.add_type("image/png", ".png")
 mimetypes.add_type("image/webp", ".webp")
-mimetypes.add_type("video/m4v", ".mp4")         # Apple MV4 Container
+mimetypes.add_type("video/m4v", ".mp4")             # Apple MV4 Container
+mimetypes.add_type("video/x-m4v", ".mp4")           # Apple MV4 Container
 mimetypes.add_type("video/mp4", ".mp4")
 mimetypes.add_type("video/quicktime", ".mov")
 mimetypes.add_type("video/webm", ".webm")
@@ -52,6 +53,7 @@ def is_video(mime_type: str) -> bool:
     return mime_type.lower() in (
         "application/ogg",
         "video/m4v",
+        "video/x-m4v",
         "video/mp4",
         "video/quicktime",
         "video/webm",
