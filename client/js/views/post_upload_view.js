@@ -161,6 +161,7 @@ class PostUploadView extends events.EventTarget {
             return this._uploadables.findIndex((u2) => u.key === u2.key);
         };
 
+        const isTouch = window.matchMedia('(pointer: coarse)').matches;
         this._contentFileDropper = new FileDropperControl(
             this._contentInputNode,
             {
@@ -168,6 +169,7 @@ class PostUploadView extends events.EventTarget {
                     "Allowed extensions: .jpg, .png, .gif, .webm, .mp4, .swf, .avif, .heif, .heic",
                 allowUrls: true,
                 allowMultiple: true,
+                accept:  `image/*, video/* ${isTouch ? '' : ', application/x-shockwave-flash'}` ,
                 lock: false,
             }
         );

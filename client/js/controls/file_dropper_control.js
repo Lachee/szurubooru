@@ -27,6 +27,8 @@ class FileDropperControl extends events.EventTarget {
         this._fileInputNode.style.display = "none";
         this._fileInputNode.multiple = options.allowMultiple || false;
 
+        this._fileInputNode.setAttribute("accept", options.accept || "*/*");
+
         this._counter = 0;
         this._dropperNode.addEventListener("dragenter", (e) =>
             this._evtDragEnter(e)
