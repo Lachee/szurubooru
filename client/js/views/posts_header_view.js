@@ -141,6 +141,20 @@ class BulkTagEditor extends BulkEditor {
     }
 }
 
+class BulkStackEditor extends BulkEditor {
+    _evtOpenLinkClick(e) {
+        e.preventDefault();
+        this.toggleOpen(true);
+        this.dispatchEvent(new CustomEvent("open", { detail: {} }));
+    }
+
+    _evtCloseLinkClick(e) {
+        e.preventDefault();
+        this.toggleOpen(false);
+        this.dispatchEvent(new CustomEvent("close", { detail: {} }));
+    }
+}
+
 class BulkDeleteEditor extends BulkEditor {
     constructor(hostNode) {
         super(hostNode);
@@ -222,6 +236,13 @@ class PostsHeaderView extends events.EventTarget {
             this._bulkEditors.push(this._bulkDeleteEditor);
         }
 
+        if (this._bulkEditStackNode) {
+            this._bulkStackEditor = new BulkStackEditor(
+                this._bulkEditStackNode
+            );
+            this._bulkEditors.push(this._bulkStackEditor);
+        }
+
         for (let editor of this._bulkEditors) {
             editor.addEventListener("submit", (e) => {
                 this._navigate();
@@ -242,6 +263,8 @@ class PostsHeaderView extends events.EventTarget {
             this._openBulkEditor(this._bulkSafetyEditor);
         } else if (ctx.parameters.delete && this._bulkDeleteEditor) {
             this._openBulkEditor(this._bulkDeleteEditor);
+        } else if (ctx.parameters.stack && this._bulkStackEditor) {
+            this._openBulkEditor(this._bulkStackEditor);
         }
     }
 
@@ -267,6 +290,10 @@ class PostsHeaderView extends events.EventTarget {
 
     get _bulkEditDeleteNode() {
         return this._hostNode.querySelector(".bulk-edit-delete");
+    }
+
+    get _bulkEditStackNode() {
+        return this._hostNode.querySelector(".bulk-edit-stack");
     }
 
     _openBulkEditor(editor) {
@@ -337,6 +364,10 @@ class PostsHeaderView extends events.EventTarget {
                 : null;
         parameters.delete =
             this._bulkDeleteEditor && this._bulkDeleteEditor.opened
+                ? "1"
+                : null;
+        parameters.stack =
+            this._bulkStackEditor && this._bulkStackEditor.opened
                 ? "1"
                 : null;
         this.dispatchEvent(

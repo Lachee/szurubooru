@@ -49,6 +49,7 @@ class PostListController {
             canBulkEditTags: api.hasPrivilege("posts:bulk-edit:tags"),
             canBulkEditSafety: api.hasPrivilege("posts:bulk-edit:safety"),
             canBulkDelete: api.hasPrivilege("posts:bulk-edit:delete"),
+            canBulkStack: api.hasPrivilege("post-stacks:create"),
             bulkEdit: {
                 tags: this._bulkEditTags,
             },
@@ -149,6 +150,49 @@ class PostListController {
         }
     }
 
+    _evtStack(e) {
+        const { draggedPost, targetPost } = e.detail;
+        const dragStackId = draggedPost.stackId;
+        const targetStackId = targetPost.stackId;
+
+        if (dragStackId && targetStackId && dragStackId === targetStackId) {
+            return;
+        }
+
+        let promise;
+        if (!dragStackId && !targetStackId) {
+            promise = api.post(uri.formatApiLink("post-stacks"), {
+                posts: [draggedPost.id, targetPost.id],
+            });
+        } else if (targetStackId && !dragStackId) {
+            const ids = targetPost.stacked.map((s) => s.id);
+            promise = api.put(uri.formatApiLink("post-stack", targetStackId), {
+                posts: [...ids, draggedPost.id],
+            });
+        } else if (dragStackId && !targetStackId) {
+            const ids = draggedPost.stacked.map((s) => s.id);
+            promise = api.put(uri.formatApiLink("post-stack", dragStackId), {
+                posts: [...ids, targetPost.id],
+            });
+        } else {
+            const targetIds = targetPost.stacked.map((s) => s.id);
+            const newIds = draggedPost.stacked
+                .map((s) => s.id)
+                .filter((id) => !targetIds.includes(id));
+            promise = api
+                .put(uri.formatApiLink("post-stack", targetStackId), {
+                    posts: [...targetIds, ...newIds],
+                })
+                .then(() =>
+                    api.delete(uri.formatApiLink("post-stack", dragStackId))
+                );
+        }
+
+        promise
+            .then(() => this._syncPageController())
+            .catch((error) => window.alert(error.message));
+    }
+
     _evtDeleteSelectedPosts(e) {
         if (this._postsMarkedForDeletion.length == 0) return;
 
@@ -195,6 +239,7 @@ class PostListController {
                         "posts:bulk-edit:safety"
                     ),
                     canBulkDelete: api.hasPrivilege("posts:bulk-edit:delete"),
+                    canBulkStack: api.hasPrivilege("post-stacks:create"),
                     bulkEdit: {
                         tags: this._bulkEditTags,
                         markedForDeletion: this._postsMarkedForDeletion,
@@ -210,6 +255,7 @@ class PostListController {
                 view.addEventListener("markForDeletion", (e) =>
                     this._evtMarkForDeletion(e)
                 );
+                view.addEventListener("stack", (e) => this._evtStack(e));
                 return view;
             },
         });

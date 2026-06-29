@@ -10,6 +10,7 @@ class PostsPageView extends events.EventTarget {
         super();
         this._ctx = ctx;
         this._hostNode = ctx.hostNode;
+        this._draggedPost = null;
 
         // Deduplicate stacked posts: among posts sharing a stackId, show only
         // the one with the lowest stackOrder in this page's results.
@@ -70,6 +71,10 @@ class PostsPageView extends events.EventTarget {
                 deleteFlipperNode.addEventListener("click", (e) =>
                     this._evtBulkToggleDeleteClick(e, post)
                 );
+            }
+
+            if (ctx.canBulkStack && ctx.parameters && ctx.parameters.stack) {
+                this._setupDragAndDrop(listItemNode, post);
             }
         }
 
@@ -159,6 +164,50 @@ class PostsPageView extends events.EventTarget {
                 },
             })
         );
+    }
+
+    _setupDragAndDrop(listItemNode, post) {
+        listItemNode.addEventListener("dragstart", (e) => {
+            this._draggedPost = post;
+            listItemNode.classList.add("dragging");
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", String(post.id));
+        });
+
+        listItemNode.addEventListener("dragend", () => {
+            this._draggedPost = null;
+            listItemNode.classList.remove("dragging");
+            for (const li of this._listItemNodes) {
+                li.classList.remove("drop-target");
+            }
+        });
+
+        listItemNode.addEventListener("dragover", (e) => {
+            if (!this._draggedPost || this._draggedPost.id === post.id) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            listItemNode.classList.add("drop-target");
+        });
+
+        listItemNode.addEventListener("dragleave", (e) => {
+            if (!listItemNode.contains(e.relatedTarget)) {
+                listItemNode.classList.remove("drop-target");
+            }
+        });
+
+        listItemNode.addEventListener("drop", (e) => {
+            e.preventDefault();
+            listItemNode.classList.remove("drop-target");
+            if (!this._draggedPost || this._draggedPost.id === post.id) return;
+            this.dispatchEvent(
+                new CustomEvent("stack", {
+                    detail: {
+                        draggedPost: this._draggedPost,
+                        targetPost: post,
+                    },
+                })
+            );
+        });
     }
 
     _syncBulkEditorsHighlights() {

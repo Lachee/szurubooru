@@ -34,4 +34,10 @@
             %><a href class='mousetrap button append close'>Stop deleting</a><%
         %></form><%
     %><% } %><%
+    %><% if (ctx.canBulkStack) { %><%
+        %><form class='horizontal bulk-edit bulk-edit-stack'><%
+            %><a href class='mousetrap button append open'>Mass stack</a><%
+            %><a href class='mousetrap button append close'>Stop stacking</a><%
+        %></form><%
+    %><% } %><%
 %></div>
