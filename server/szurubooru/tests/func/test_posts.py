@@ -273,6 +273,9 @@ def test_serialize_post(
             "hasCustomThumbnail": True,
             "mimeType": "image/jpeg",
             "comments": ["commenter1", "commenter2"],
+            "stackId": None,
+            "stackOrder": 0,
+            "stacked": None
         }
 
 

@@ -54,6 +54,10 @@ def test_info_api(
             "posts:view:featured": "regular",
         },
         "canSendMails": True,
+        "oidcEnabled": False,
+        "oidcButtonLabel": "Log in with SSO",
+        "oidcButtonIcon": None,
+        "disablePasswordAuth": False,
     }
 
     with fake_datetime("2016-01-01 13:00"):
