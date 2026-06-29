@@ -1,4 +1,6 @@
-<% if (ctx.postFlow) { %><div class='post-list post-flow'><% } else { %><div class='post-list'><% } %>
+<%
+    const stackMode = ctx.canBulkStack && ctx.parameters && ctx.parameters.stack;
+%><div class='post-list<% if (ctx.postFlow) { %> post-flow<% } %><% if (stackMode) { %> stack-mode<% } %>'>
     <% if (ctx.displayResults.length) { %>
         <ul>
             <% for (let post of ctx.displayResults) { %>
@@ -6,7 +8,10 @@
                     const isStacked = post.stacked && post.stacked.length > 1;
                     const stackPeeks = isStacked ? post.stacked.filter(s => s.id !== post.id).slice(0, 2) : [];
                 %>
-                <li data-post-id='<%= post.id %>'<% if (isStacked) { %> class='stacked'<% } %>>
+                <li data-post-id='<%= post.id %>'
+                    class='<% if (isStacked) { %>stacked<% } %>'
+                    <% if (stackMode) { %> draggable='true'<% } %>>
+                    <% if (stackMode) { %><span class='stack-drag-handle'><i class='fa fa-clone'></i></span><% } %>
                     <% if (isStacked) { %>
                         <% for (let i = stackPeeks.length - 1; i >= 0; i--) { %>
                             <div class='stack-peek' data-depth='<%- i + 1 %>'
@@ -15,7 +20,8 @@
                     <% } %>
                     <a class='thumbnail-wrapper <%= post.tags.length > 0 ? "tags" : "no-tags" %>'
                             title='@<%- post.id %> (<%- post.type %>)<% if (isStacked) { %> — stack of <%- post.stacked.length %><% } %>&#10;&#10;Tags: <%- post.tags.map(tag => '#' + tag.names[0]).join(' ') || 'none' %>'
-                            href='<%= ctx.canViewPosts ? ctx.getPostUrl(post.id, ctx.parameters) : '' %>'>
+                            href='<%= ctx.canViewPosts ? ctx.getPostUrl(post.id, ctx.parameters) : '' %>'
+                            <% if (stackMode) { %>draggable='false'<% } %>>
                         <%= ctx.makeThumbnail(post.thumbnailUrl) %>
                         <span class='type' data-type='<%- post.type %>'>
                             <% if (post.type == 'video' || post.type == 'flash' || post.type == 'animation') { %>
