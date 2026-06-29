@@ -39,7 +39,7 @@ def is_flash(mime_type: str) -> bool:
 def is_video(mime_type: str) -> bool:
     return mime_type.lower() in (
         "application/ogg",
-        "video/m4v"
+        "video/m4v",
         "video/mp4",
         "video/quicktime",
         "video/webm",
