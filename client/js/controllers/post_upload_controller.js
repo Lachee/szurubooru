@@ -7,6 +7,7 @@ const misc = require("../util/misc.js");
 const progress = require("../util/progress.js");
 const topNavigation = require("../models/top_navigation.js");
 const Post = require("../models/post.js");
+const Pool = require("../models/pool.js");
 const Tag = require("../models/tag.js");
 const PostUploadView = require("../views/post_upload_view.js");
 const EmptyView = require("../views/empty_view.js");
@@ -16,8 +17,9 @@ const genericErrorMessage =
     'click "resume upload" when you\'re ready.';
 
 class PostUploadController {
-    constructor() {
+    constructor(ctx) {
         this._lastCancellablePromise = null;
+        this._targetPool = null;
 
         if (!api.hasPrivilege("posts:create")) {
             this._view = new EmptyView();
@@ -25,16 +27,41 @@ class PostUploadController {
             return;
         }
 
-        topNavigation.activate("upload");
-        topNavigation.setTitle("Upload");
-        this._view = new PostUploadView({
+        const poolId = ctx && ctx.parameters && ctx.parameters.pool
+            ? parseInt(ctx.parameters.pool)
+            : null;
+
+        const viewCtx = {
             canUploadAnonymously: api.hasPrivilege("posts:create:anonymous"),
             canViewPosts: api.hasPrivilege("posts:view"),
             enableSafety: api.safetyEnabled(),
-        });
-        this._view.addEventListener("change", (e) => this._evtChange(e));
-        this._view.addEventListener("submit", (e) => this._evtSubmit(e));
-        this._view.addEventListener("cancel", (e) => this._evtCancel(e));
+        };
+
+        if (poolId) {
+            topNavigation.activate("pools");
+            topNavigation.setTitle("Upload to pool");
+            Pool.get(poolId).then(
+                (pool) => {
+                    this._targetPool = pool;
+                    viewCtx.targetPool = pool;
+                    this._view = new PostUploadView(viewCtx);
+                    this._view.addEventListener("change", (e) => this._evtChange(e));
+                    this._view.addEventListener("submit", (e) => this._evtSubmit(e));
+                    this._view.addEventListener("cancel", (e) => this._evtCancel(e));
+                },
+                (error) => {
+                    this._view = new EmptyView();
+                    this._view.showError(error.message);
+                }
+            );
+        } else {
+            topNavigation.activate("upload");
+            topNavigation.setTitle("Upload");
+            this._view = new PostUploadView(viewCtx);
+            this._view.addEventListener("change", (e) => this._evtChange(e));
+            this._view.addEventListener("submit", (e) => this._evtSubmit(e));
+            this._view.addEventListener("cancel", (e) => this._evtCancel(e));
+        }
     }
 
     _evtChange(e) {
@@ -106,8 +133,14 @@ class PostUploadController {
                 () => {
                     this._view.clearMessages();
                     misc.disableExitConfirmation();
-                    const ctx = router.show(uri.formatClientLink("posts"));
-                    ctx.controller.showSuccess("Posts uploaded.");
+                    if (this._targetPool) {
+                        router.show(
+                            uri.formatClientLink("pool", this._targetPool.id)
+                        );
+                    } else {
+                        const ctx = router.show(uri.formatClientLink("posts"));
+                        ctx.controller.showSuccess("Posts uploaded.");
+                    }
                 },
                 (error) => {
                     this._view.showError(genericErrorMessage);
@@ -161,10 +194,14 @@ class PostUploadController {
 
                 // no duplicates, proceed with saving
                 let post = this._uploadableToPost(uploadable);
-                let savePromise = post.save(uploadable.anonymous).then(() => {
-                    this._view.removeUploadable(uploadable);
-                    return Promise.resolve();
-                });
+                let savePromise = post.save(uploadable.anonymous)
+                    .then(() => this._targetPool
+                        ? this._addPostToPool(post.id)
+                        : Promise.resolve()
+                    )
+                    .then(() => {
+                        this._view.removeUploadable(uploadable);
+                    });
                 this._lastCancellablePromise = savePromise;
                 return savePromise;
             })
@@ -179,6 +216,15 @@ class PostUploadController {
                     return Promise.reject(error);
                 }
             );
+    }
+
+    _addPostToPool(postId) {
+        return Pool.get(this._targetPool.id).then((pool) => {
+            if (!pool.posts.hasPostId(postId)) {
+                pool.posts.addById(postId);
+                return pool.save();
+            }
+        });
     }
 
     _uploadableToPost(uploadable) {
@@ -203,6 +249,6 @@ class PostUploadController {
 
 module.exports = (router) => {
     router.enter(["upload"], (ctx, next) => {
-        ctx.controller = new PostUploadController();
+        ctx.controller = new PostUploadController(ctx);
     });
 };

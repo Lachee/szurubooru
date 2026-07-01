@@ -1,4 +1,9 @@
 <div id='post-upload'>
+    <% if (ctx.targetPool) { %>
+        <p class='pool-upload-notice'>
+            Uploading to pool: <strong><%- ctx.targetPool.names[0] %></strong>
+        </p>
+    <% } %>
     <form>
         <div class='dropper-container'></div>
 

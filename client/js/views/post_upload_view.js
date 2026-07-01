@@ -151,7 +151,7 @@ class PostUploadView extends events.EventTarget {
         this._ctx = ctx;
         this._hostNode = document.getElementById("content-holder");
 
-        views.replaceContent(this._hostNode, template());
+        views.replaceContent(this._hostNode, template(this._ctx));
         views.syncScrollPosition();
 
         this._cancelButtonNode.disabled = true;

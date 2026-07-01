@@ -6,6 +6,9 @@
             --><% if (ctx.canEditAnything) { %><!--
                 --><li data-name='edit'><a href='<%- ctx.formatClientLink('pool', ctx.pool.id, 'edit') %>'>Edit</a></li><!--
             --><% } %><!--
+            --><% if (ctx.canUploadToPool) { %><!--
+                --><li data-name='upload'><a href='<%- ctx.formatClientLink('upload', {pool: ctx.pool.id}) %>'>Upload</a></li><!--
+            --><% } %><!--
             --><% if (ctx.canMerge) { %><!--
                 --><li data-name='merge'><a href='<%- ctx.formatClientLink('pool', ctx.pool.id, 'merge') %>'>Merge with&hellip;</a></li><!--
             --><% } %><!--

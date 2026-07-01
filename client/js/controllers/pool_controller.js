@@ -51,6 +51,7 @@ class PoolController {
                     canEditPosts: api.hasPrivilege("pools:edit:posts"),
                     canMerge: api.hasPrivilege("pools:merge"),
                     canDelete: api.hasPrivilege("pools:delete"),
+                    canUploadToPool: api.hasPrivilege("posts:create"),
                     categories: categories,
                     escapeTagName: uri.escapeTagName,
                 });
