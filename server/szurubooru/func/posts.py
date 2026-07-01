@@ -163,15 +163,9 @@ def serialize_note(note: model.PostNote) -> rest.Response:
 
 
 class PostSerializer(serialization.BaseSerializer):
-    def __init__(
-        self,
-        post: model.Post,
-        auth_user: model.User,
-        stacks_cache: Optional[Dict[int, List[model.Post]]] = None,
-    ) -> None:
+    def __init__(self, post: model.Post, auth_user: model.User) -> None:
         self.post = post
         self.auth_user = auth_user
-        self._stacks_cache = stacks_cache
 
     def _serializers(self) -> Dict[str, Callable[[], Any]]:
         return {
@@ -366,15 +360,12 @@ class PostSerializer(serialization.BaseSerializer):
     def serialize_stacked(self) -> Any:
         if self.post.stack_id is None:
             return None
-        if self._stacks_cache is not None:
-            stack_posts = self._stacks_cache.get(self.post.stack_id, [])
-        else:
-            stack_posts = (
-                db.session.query(model.Post)
-                .filter(model.Post.stack_id == self.post.stack_id)
-                .order_by(model.Post.stack_order)
-                .all()
-            )
+        stack_posts = (
+            db.session.query(model.Post)
+            .filter(model.Post.stack_id == self.post.stack_id)
+            .order_by(model.Post.stack_order)
+            .all()
+        )
         return [
             {
                 "id": p.post_id,
@@ -386,14 +377,11 @@ class PostSerializer(serialization.BaseSerializer):
 
 
 def serialize_post(
-    post: Optional[model.Post],
-    auth_user: model.User,
-    options: List[str] = [],
-    stacks_cache: Optional[Dict[int, List[model.Post]]] = None,
+    post: Optional[model.Post], auth_user: model.User, options: List[str] = []
 ) -> Optional[rest.Response]:
     if not post:
         return None
-    return PostSerializer(post, auth_user, stacks_cache=stacks_cache).serialize(options)
+    return PostSerializer(post, auth_user).serialize(options)
 
 
 def serialize_micro_post(

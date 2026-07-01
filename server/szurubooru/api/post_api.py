@@ -32,34 +32,11 @@ def _get_post(params: Dict[str, str]) -> model.Post:
 
 
 def _serialize_post(
-    ctx: rest.Context,
-    post: Optional[model.Post],
-    stacks_cache: Optional[Dict[int, List[model.Post]]] = None,
+    ctx: rest.Context, post: Optional[model.Post]
 ) -> rest.Response:
     return posts.serialize_post(
-        post,
-        ctx.user,
-        options=serialization.get_serialization_options(ctx),
-        stacks_cache=stacks_cache,
+        post, ctx.user, options=serialization.get_serialization_options(ctx)
     )
-
-
-def _build_stacks_cache(
-    post_list: List[model.Post],
-) -> Dict[int, List[model.Post]]:
-    stack_ids = {p.stack_id for p in post_list if p.stack_id is not None}
-    if not stack_ids:
-        return {}
-    members = (
-        db.session.query(model.Post)
-        .filter(model.Post.stack_id.in_(stack_ids))
-        .order_by(model.Post.stack_order)
-        .all()
-    )
-    result: Dict[int, List[model.Post]] = {}
-    for p in members:
-        result.setdefault(p.stack_id, []).append(p)
-    return result
 
 
 @rest.routes.get("/posts/?")
@@ -68,21 +45,9 @@ def get_posts(
 ) -> rest.Response:
     auth.verify_privilege(ctx.user, "posts:list")
     _search_executor_config.user = ctx.user
-    query = ctx.get_param_as_string("query", default="")
-    offset = ctx.get_param_as_int("offset", default=0, min=0)
-    limit = ctx.get_param_as_int("limit", default=100, min=1, max=100)
-    count, entities = _search_executor.execute(query, offset, limit)
-    stacks_cache = _build_stacks_cache(entities)
-    return {
-        "query": query,
-        "offset": offset,
-        "limit": limit,
-        "total": count,
-        "results": [
-            _serialize_post(ctx, post, stacks_cache=stacks_cache)
-            for post in entities
-        ],
-    }
+    return _search_executor.execute_and_serialize(
+        ctx, lambda post: _serialize_post(ctx, post)
+    )
 
 
 @rest.routes.post("/posts/?")
