@@ -80,12 +80,17 @@ ARG PUID=1000
 ARG PGID=1000
 
 RUN apk --no-cache add \
-    dumb-init \
-    py3-pip \
-    py3-setuptools \
-    py3-waitress \
+        dumb-init \
+        py3-pip \
+        py3-setuptools \
+        py3-waitress \
+    && apk --no-cache add \
+        --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing \
+        py-spy \
     && pip3 install --no-cache-dir --disable-pip-version-check \
-    hupper \
+        hupper \
+        debugpy \
+    && apk --no-cache del py3-pip \
     && mkdir -p /opt/app /data \
     && addgroup -g ${PGID} app \
     && adduser -SDH -h /opt/app -g '' -G app -u ${PUID} app \
@@ -97,6 +102,10 @@ CMD ["/opt/app/docker-start-dev.sh"]
 ARG PORT=6666
 ENV PORT=${PORT}
 EXPOSE ${PORT}
+
+ARG DEBUGPY_PORT=5678
+ENV DEBUGPY_PORT=${DEBUGPY_PORT}
+EXPOSE ${DEBUGPY_PORT}
 
 ARG THREADS=4
 ENV THREADS=${THREADS}

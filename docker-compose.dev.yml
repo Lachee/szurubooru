@@ -10,7 +10,13 @@ services:
       target: development
     depends_on:
       - sql
+    ports:
+      - "6666:6666"
+      - "5678:5678"
+    command: ["/opt/app/docker-start-profile.sh"]
     environment:
+      DEBUGPY_PORT: "5678"
+      PYTHONUNBUFFERED: "1"
       ## These should be the names of the dependent containers listed below,
       ## or FQDNs/IP addresses if these services are running outside of Docker
       POSTGRES_HOST: sql
@@ -25,6 +31,7 @@ services:
     volumes:
       - "data:/data"
       - "./server/:/opt/app/"
+      - "./_profiles:/profiles"
 
   client:
     build:
