@@ -210,6 +210,37 @@ class PostSearchConfig(BaseSearchConfig):
     def finalize_query(self, query: SaQuery) -> SaQuery:
         return query.order_by(model.Post.post_id.desc())
 
+    def group_query(self, query: SaQuery) -> Optional[SaQuery]:
+        # collapses each stack to its lowest-stack_order post (the cover);
+        # query is already filtered, so a stack matches if any member does.
+        # .distinct(column) is postgres-only DISTINCT ON, already relied on
+        # elsewhere in this codebase (e.g. the postgresql ARRAY column type)
+        primary_subquery = (
+            db.session.query(
+                model.Post.stack_id.label("stack_id"),
+                model.Post.post_id.label("primary_post_id"),
+            )
+            .filter(model.Post.stack_id.isnot(None))
+            .order_by(
+                model.Post.stack_id,
+                model.Post.stack_order.asc(),
+                model.Post.post_id.asc(),
+            )
+            .distinct(model.Post.stack_id)
+            .subquery()
+        )
+        repr_id = sa.func.coalesce(
+            primary_subquery.c.primary_post_id, model.Post.post_id
+        )
+        return (
+            query.outerjoin(
+                primary_subquery,
+                primary_subquery.c.stack_id == model.Post.stack_id,
+            )
+            .with_entities(repr_id.label("repr_id"))
+            .distinct()
+        )
+
     @property
     def id_column(self) -> SaColumn:
         return model.Post.post_id

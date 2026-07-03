@@ -12,27 +12,10 @@ class PostsPageView extends events.EventTarget {
         this._hostNode = ctx.hostNode;
         this._draggedPost = null;
 
-        // Deduplicate stacked posts: among posts sharing a stackId, show only
-        // the one with the lowest stackOrder in this page's results.
-        const seenStacks = new Map();
-        const displayResults = [];
-        for (const post of ctx.response.results) {
-            if (post.stackId != null) {
-                const existing = seenStacks.get(post.stackId);
-                if (!existing) {
-                    seenStacks.set(post.stackId, post);
-                    displayResults.push(post);
-                } else if (post.stackOrder < existing.stackOrder) {
-                    const idx = displayResults.indexOf(existing);
-                    displayResults[idx] = post;
-                    seenStacks.set(post.stackId, post);
-                }
-                // else skip secondary
-            } else {
-                displayResults.push(post);
-            }
-        }
-        ctx.displayResults = displayResults;
+        // The server already collapses each stack into a single result
+        // (represented by its lowest-stackOrder post), counted once towards
+        // the page's limit/total, so no client-side dedup is needed here.
+        ctx.displayResults = ctx.response.results;
 
         views.replaceContent(this._hostNode, template(ctx));
 

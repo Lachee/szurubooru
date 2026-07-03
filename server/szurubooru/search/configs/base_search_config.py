@@ -27,6 +27,11 @@ class BaseSearchConfig:
     def finalize_query(self, query: SaQuery) -> SaQuery:
         return query
 
+    def group_query(self, query: SaQuery) -> Optional[SaQuery]:
+        # override to collapse composite entities (e.g. post stacks) into a
+        # query selecting one "repr_id" column per group; None = no grouping
+        return None
+
     @property
     def id_column(self) -> SaColumn:
         return None
