@@ -97,18 +97,46 @@ class Executor:
         if cache.has(key):
             return cache.get(key)
 
-        filter_query = self.config.create_filter_query(disable_eager_loads)
-        filter_query = filter_query.options(sa.orm.lazyload("*"))
-        filter_query = self._prepare_db_query(filter_query, search_query, True)
-        entities = filter_query.offset(offset).limit(limit).all()
+        # dedup grouped entities (e.g. post stacks) before sort/pagination so
+        # a group counts once and can't be split across pages
+        group_base_query = self.config.create_count_query(disable_eager_loads)
+        group_base_query = group_base_query.options(sa.orm.lazyload("*"))
+        group_base_query = self._apply_filters(group_base_query, search_query)
+        group_ids_query = self.config.group_query(group_base_query)
 
-        count_query = self.config.create_count_query(disable_eager_loads)
-        count_query = count_query.options(sa.orm.lazyload("*"))
-        count_query = self._prepare_db_query(count_query, search_query, False)
-        count_statement = count_query.statement.with_only_columns(
-            [sa.func.count()]
-        ).order_by(None)
-        count = db.session.execute(count_statement).scalar()
+        if group_ids_query is not None:
+            ids_subquery = group_ids_query.subquery()
+            count = db.session.execute(
+                sa.select([sa.func.count()]).select_from(ids_subquery)
+            ).scalar()
+
+            entities_query = self.config.create_filter_query(
+                disable_eager_loads
+            )
+            entities_query = entities_query.options(sa.orm.lazyload("*"))
+            entities_query = entities_query.filter(
+                self.config.id_column.in_(
+                    sa.select([ids_subquery.c.repr_id])
+                )
+            )
+            entities_query = self._apply_sort(entities_query, search_query)
+            entities_query = self.config.finalize_query(entities_query)
+            entities = entities_query.offset(offset).limit(limit).all()
+        else:
+            filter_query = self.config.create_filter_query(disable_eager_loads)
+            filter_query = filter_query.options(sa.orm.lazyload("*"))
+            filter_query = self._prepare_db_query(
+                filter_query, search_query, True
+            )
+            entities = filter_query.offset(offset).limit(limit).all()
+
+            count_query = self.config.create_count_query(disable_eager_loads)
+            count_query = count_query.options(sa.orm.lazyload("*"))
+            count_query = self._prepare_db_query(count_query, search_query, False)
+            count_statement = count_query.statement.with_only_columns(
+                [sa.func.count()]
+            ).order_by(None)
+            count = db.session.execute(count_statement).scalar()
 
         ret = (count, entities)
         cache.put(key, ret)
@@ -131,8 +159,8 @@ class Executor:
             "results": list([serializer(entity) for entity in entities]),
         }
 
-    def _prepare_db_query(
-        self, db_query: SaQuery, search_query: SearchQuery, use_sort: bool
+    def _apply_filters(
+        self, db_query: SaQuery, search_query: SearchQuery
     ) -> SaQuery:
         for anon_token in search_query.anonymous_tokens:
             if not self.config.anonymous_filter:
@@ -170,25 +198,37 @@ class Executor:
                 db_query, None, sp_token.negated
             )
 
-        if use_sort:
-            for sort_token in search_query.sort_tokens:
-                if sort_token.name not in self.config.sort_columns:
-                    raise errors.SearchError(
-                        "Unknown sort token: %r. "
-                        "Available sort tokens: %r."
-                        % (
-                            sort_token.name,
-                            _format_dict_keys(self.config.sort_columns),
-                        )
-                    )
-                column, default_order = self.config.sort_columns[
-                    sort_token.name
-                ]
-                order = _get_order(sort_token.order, default_order)
-                if order == sort_token.SORT_ASC:
-                    db_query = db_query.order_by(column.asc())
-                elif order == sort_token.SORT_DESC:
-                    db_query = db_query.order_by(column.desc())
+        return db_query
 
+    def _apply_sort(
+        self, db_query: SaQuery, search_query: SearchQuery
+    ) -> SaQuery:
+        for sort_token in search_query.sort_tokens:
+            if sort_token.name not in self.config.sort_columns:
+                raise errors.SearchError(
+                    "Unknown sort token: %r. "
+                    "Available sort tokens: %r."
+                    % (
+                        sort_token.name,
+                        _format_dict_keys(self.config.sort_columns),
+                    )
+                )
+            column, default_order = self.config.sort_columns[
+                sort_token.name
+            ]
+            order = _get_order(sort_token.order, default_order)
+            if order == sort_token.SORT_ASC:
+                db_query = db_query.order_by(column.asc())
+            elif order == sort_token.SORT_DESC:
+                db_query = db_query.order_by(column.desc())
+
+        return db_query
+
+    def _prepare_db_query(
+        self, db_query: SaQuery, search_query: SearchQuery, use_sort: bool
+    ) -> SaQuery:
+        db_query = self._apply_filters(db_query, search_query)
+        if use_sort:
+            db_query = self._apply_sort(db_query, search_query)
         db_query = self.config.finalize_query(db_query)
         return db_query

@@ -72,7 +72,7 @@ def get_posts(
     offset = ctx.get_param_as_int("offset", default=0, min=0)
     limit = ctx.get_param_as_int("limit", default=100, min=1, max=100)
     count, entities = _search_executor.execute(query, offset, limit)
-    stacks_cache = _build_stacks_cache(entities)
+    stacks_cache = posts.build_stacks_cache(entities)
     return {
         "query": query,
         "offset": offset,

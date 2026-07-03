@@ -385,6 +385,26 @@ class PostSerializer(serialization.BaseSerializer):
         ]
 
 
+def build_stacks_cache(
+    post_list: List[model.Post],
+) -> Dict[int, List[model.Post]]:
+    # batches all stack members referenced by post_list into one query,
+    # instead of one query per stacked post in serialize_stacked
+    stack_ids = {p.stack_id for p in post_list if p.stack_id is not None}
+    if not stack_ids:
+        return {}
+    members = (
+        db.session.query(model.Post)
+        .filter(model.Post.stack_id.in_(stack_ids))
+        .order_by(model.Post.stack_order)
+        .all()
+    )
+    result = {}  # type: Dict[int, List[model.Post]]
+    for member in members:
+        result.setdefault(member.stack_id, []).append(member)
+    return result
+
+
 def serialize_post(
     post: Optional[model.Post],
     auth_user: model.User,
@@ -393,7 +413,9 @@ def serialize_post(
 ) -> Optional[rest.Response]:
     if not post:
         return None
-    return PostSerializer(post, auth_user, stacks_cache=stacks_cache).serialize(options)
+    return PostSerializer(post, auth_user, stacks_cache=stacks_cache).serialize(
+        options
+    )
 
 
 def serialize_micro_post(
