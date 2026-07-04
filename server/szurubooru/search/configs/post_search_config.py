@@ -212,35 +212,38 @@ class PostSearchConfig(BaseSearchConfig):
         return query.order_by(model.Post.post_id.desc())
 
     def group_query(self, query: SaQuery) -> Optional[SaQuery]:
-        # collapses each stack to its lowest-stack_order post (the cover);
-        # query is already filtered, so a stack matches if any member does.
-        # .distinct(column) is postgres-only DISTINCT ON, already relied on
-        # elsewhere in this codebase (e.g. the postgresql ARRAY column type)
-        primary_subquery = (
-            db.session.query(
-                model.Post.stack_id.label("stack_id"),
-                model.Post.post_id.label("primary_post_id"),
-            )
-            .filter(model.Post.stack_id.isnot(None))
-            .order_by(
-                model.Post.stack_id,
-                model.Post.stack_order.asc(),
-                model.Post.post_id.asc(),
-            )
-            .distinct(model.Post.stack_id)
-            .subquery()
+        # deduping requires a DISTINCT over an outer join across the whole
+        # matching set, which forces postgres to sort/scan it in full before
+        # pagination can even start. skip that unless the filtered results
+        # actually contain a stacked post - this exists() is index-backed
+        # and short-circuits on the first match, unlike the dedup below.
+        has_stacked = db.session.query(
+            query.filter(model.Post.stack_id.isnot(None)).exists()
+        ).scalar()
+        if not has_stacked:
+            return None
+
+        # collapses each stack to its lowest-stack_order post (the cover).
+        # expressed as a per-row filter (keep unstacked posts, plus the one
+        # member per stack whose id matches the correlated cover lookup)
+        # rather than a DISTINCT over an outer join of the whole table, so
+        # postgres can evaluate it inline off ix_post_stack_id instead of
+        # sorting/deduping every matching row before pagination can start.
+        cover_post = sa.orm.aliased(model.Post)
+        cover_id = (
+            db.session.query(cover_post.post_id)
+            .filter(cover_post.stack_id == model.Post.stack_id)
+            .order_by(cover_post.stack_order.asc(), cover_post.post_id.asc())
+            .limit(1)
+            .correlate(model.Post)
+            .as_scalar()
         )
-        repr_id = sa.func.coalesce(
-            primary_subquery.c.primary_post_id, model.Post.post_id
-        )
-        return (
-            query.outerjoin(
-                primary_subquery,
-                primary_subquery.c.stack_id == model.Post.stack_id,
+        return query.filter(
+            sa.or_(
+                model.Post.stack_id.is_(None),
+                model.Post.post_id == cover_id,
             )
-            .with_entities(repr_id.label("repr_id"))
-            .distinct()
-        )
+        ).with_entities(model.Post.post_id.label("repr_id"))
 
     @property
     def id_column(self) -> SaColumn:
