@@ -135,12 +135,17 @@ class PoolSerializer(serialization.BaseSerializer):
         return self.pool.post_count
 
     def serialize_posts(self) -> Any:
+        # fetch the pool's posts in one query instead of triggering a
+        # lazy load per member through the pool.posts association proxy
         return [
-            post
-            for post in [
-                posts.serialize_micro_post(rel, None)
-                for rel in self.pool.posts
-            ]
+            posts.serialize_micro_post(post, None)
+            for post in (
+                db.session.query(model.Post)
+                .join(model.PoolPost)
+                .filter(model.PoolPost.pool_id == self.pool.pool_id)
+                .order_by(model.PoolPost.order)
+                .all()
+            )
         ]
 
 

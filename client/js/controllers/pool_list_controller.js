@@ -10,14 +10,10 @@ const PoolsHeaderView = require("../views/pools_header_view.js");
 const PoolsPageView = require("../views/pools_page_view.js");
 const EmptyView = require("../views/empty_view.js");
 
-const fields = [
-    "id",
-    "names",
-    "posts",
-    "creationTime",
-    "postCount",
-    "category",
-];
+// note: "posts" is deliberately absent - the pool listing only shows
+// name/count/date, and serializing every member of every pool is the
+// most expensive thing the pools endpoint can do
+const fields = ["id", "names", "creationTime", "postCount", "category"];
 
 class PoolListController {
     constructor(ctx) {

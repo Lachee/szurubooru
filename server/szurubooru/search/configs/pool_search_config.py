@@ -20,7 +20,16 @@ class PoolSearchConfig(BaseSearchConfig):
         return (
             db.session.query(model.Pool)
             .join(model.PoolCategory)
-            .options(strategy(model.Pool.names))
+            .options(
+                # don't let the model-level joined loading of _posts
+                # multiply the result rows by every pool's member count;
+                # serialize_posts fetches members itself when asked
+                sa.orm.lazyload(model.Pool._posts),
+                # postCount is serialized for every listed pool, so
+                # compute it inline instead of one deferred load each
+                sa.orm.undefer(model.Pool.post_count),
+                strategy(model.Pool.names),
+            )
         )
 
     def create_count_query(self, _disable_eager_loads: bool) -> SaQuery:
