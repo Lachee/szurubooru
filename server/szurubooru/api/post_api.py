@@ -76,6 +76,9 @@ def get_posts(
     limit = ctx.get_param_as_int("limit", default=100, min=1, max=100)
     count, entities = _search_executor.execute(query, offset, limit)
     stacks_cache = posts.build_stacks_cache(entities)
+    fields = serialization.get_serialization_options(ctx)
+    if not fields or "tags" in fields:
+        posts.populate_tag_post_counts(entities)
     return {
         "query": query,
         "offset": offset,
@@ -152,6 +155,9 @@ def create_snapshots_for_post(
 def get_post(ctx: rest.Context, params: Dict[str, str]) -> rest.Response:
     auth.verify_privilege(ctx.user, "posts:view")
     post = _get_post(params)
+    fields = serialization.get_serialization_options(ctx)
+    if not fields or "tags" in fields:
+        posts.populate_tag_post_counts([post])
     return _serialize_post(ctx, post)
 
 

@@ -199,6 +199,12 @@ class PostSearchConfig(BaseSearchConfig):
             sa.orm.defer(model.Post.note_count),
             sa.orm.defer(model.Post.tag_count),
             strategy(model.Post.tags).subqueryload(model.Tag.names),
+            # tag_count is a correlated count() over the whole tag table;
+            # nothing in post serialization reads it, so keep it deferred
+            # or it re-runs per result row
+            strategy(model.Post.tags)
+            .subqueryload(model.Tag.category)
+            .defer(model.TagCategory.tag_count),
             strategy(model.Post.tags).defer(model.Tag.post_count),
             strategy(model.Post.tags).lazyload(model.Tag.implications),
             strategy(model.Post.tags).lazyload(model.Tag.suggestions),
@@ -210,24 +216,21 @@ class PostSearchConfig(BaseSearchConfig):
     def finalize_query(self, query: SaQuery) -> SaQuery:
         return query.order_by(model.Post.post_id.desc())
 
-    def group_query(self, query: SaQuery) -> Optional[SaQuery]:
-        # deduping requires a DISTINCT over an outer join across the whole
-        # matching set, which forces postgres to sort/scan it in full before
-        # pagination can even start. skip that unless the filtered results
+    def should_group(self, query: SaQuery) -> bool:
+        # grouping is only worth the extra work when the filtered results
         # actually contain a stacked post - this exists() is index-backed
-        # and short-circuits on the first match, unlike the dedup below.
-        has_stacked = db.session.query(
+        # and short-circuits on the first match.
+        return db.session.query(
             query.filter(model.Post.stack_id.isnot(None)).exists()
         ).scalar()
-        if not has_stacked:
-            return None
 
+    def group_filter(self, query: SaQuery) -> SaQuery:
         # collapses each stack to its lowest-stack_order post (the cover).
         # expressed as a per-row filter (keep unstacked posts, plus the one
         # member per stack whose id matches the correlated cover lookup)
         # rather than a DISTINCT over an outer join of the whole table, so
-        # postgres can evaluate it inline off ix_post_stack_id instead of
-        # sorting/deduping every matching row before pagination can start.
+        # postgres can evaluate it inline off ix_post_stack_id while walking
+        # the pagination index and stop after offset+limit rows.
         cover_post = sa.orm.aliased(model.Post)
         cover_id = (
             db.session.query(cover_post.post_id)
@@ -242,7 +245,35 @@ class PostSearchConfig(BaseSearchConfig):
                 model.Post.stack_id.is_(None),
                 model.Post.post_id == cover_id,
             )
-        ).with_entities(model.Post.post_id.label("repr_id"))
+        )
+
+    def group_count(self, query: SaQuery) -> int:
+        # counting can't stop early the way pagination can, so the
+        # correlated cover lookup used by group_filter would run once per
+        # stacked row. instead resolve every stack's cover in one index
+        # pass over the stacked posts and semi-join against that set.
+        cover_post = sa.orm.aliased(model.Post)
+        covers_query = (
+            db.session.query(cover_post.post_id)
+            .filter(cover_post.stack_id.isnot(None))
+            .distinct(cover_post.stack_id)
+            .order_by(
+                cover_post.stack_id,
+                cover_post.stack_order.asc(),
+                cover_post.post_id.asc(),
+            )
+        )
+        count_statement = (
+            query.filter(
+                sa.or_(
+                    model.Post.stack_id.is_(None),
+                    model.Post.post_id.in_(covers_query.subquery()),
+                )
+            )
+            .statement.with_only_columns([sa.func.count()])
+            .order_by(None)
+        )
+        return db.session.execute(count_statement).scalar()
 
     @property
     def id_column(self) -> SaColumn:

@@ -405,6 +405,40 @@ def build_stacks_cache(
     return result
 
 
+def populate_tag_post_counts(post_list: List[model.Post]) -> None:
+    # batches the usage counts of every tag referenced by post_list into
+    # one query, instead of one deferred-column load per tag when
+    # serialize_tags reads tag.post_count
+    tag_map = {}  # type: Dict[int, model.Tag]
+    for post in post_list:
+        for tag in post.tags:
+            tag_map[tag.tag_id] = tag
+    if not tag_map:
+        return
+    # bind the (few) post ids and let postgres derive the tag id set;
+    # binding every tag id inflates statement compile time on tag-dense
+    # pages
+    page_tag_ids = (
+        db.session.query(model.PostTag.tag_id)
+        .filter(
+            model.PostTag.post_id.in_([post.post_id for post in post_list])
+        )
+        .distinct()
+    )
+    counts = dict(
+        db.session.query(
+            model.PostTag.tag_id, sa.func.count(model.PostTag.post_id)
+        )
+        .filter(model.PostTag.tag_id.in_(page_tag_ids.subquery()))
+        .group_by(model.PostTag.tag_id)
+        .all()
+    )
+    for tag_id, tag in tag_map.items():
+        sa.orm.attributes.set_committed_value(
+            tag, "post_count", counts.get(tag_id, 0)
+        )
+
+
 def serialize_post(
     post: Optional[model.Post],
     auth_user: model.User,
@@ -413,9 +447,9 @@ def serialize_post(
 ) -> Optional[rest.Response]:
     if not post:
         return None
-    return PostSerializer(post, auth_user, stacks_cache=stacks_cache).serialize(
-        options
-    )
+    return PostSerializer(
+        post, auth_user, stacks_cache=stacks_cache
+    ).serialize(options)
 
 
 def serialize_micro_post(

@@ -102,26 +102,19 @@ class Executor:
         group_base_query = self.config.create_count_query(disable_eager_loads)
         group_base_query = group_base_query.options(sa.orm.lazyload("*"))
         group_base_query = self._apply_filters(group_base_query, search_query)
-        group_ids_query = self.config.group_query(group_base_query)
 
-        if group_ids_query is not None:
-            ids_subquery = group_ids_query.subquery()
-            count = db.session.execute(
-                sa.select([sa.func.count()]).select_from(ids_subquery)
-            ).scalar()
-
+        if self.config.should_group(group_base_query):
             entities_query = self.config.create_filter_query(
                 disable_eager_loads
             )
             entities_query = entities_query.options(sa.orm.lazyload("*"))
-            entities_query = entities_query.filter(
-                self.config.id_column.in_(
-                    sa.select([ids_subquery.c.repr_id])
-                )
-            )
+            entities_query = self._apply_filters(entities_query, search_query)
+            entities_query = self.config.group_filter(entities_query)
             entities_query = self._apply_sort(entities_query, search_query)
             entities_query = self.config.finalize_query(entities_query)
             entities = entities_query.offset(offset).limit(limit).all()
+
+            count = self.config.group_count(group_base_query)
         else:
             filter_query = self.config.create_filter_query(disable_eager_loads)
             filter_query = filter_query.options(sa.orm.lazyload("*"))
@@ -132,7 +125,9 @@ class Executor:
 
             count_query = self.config.create_count_query(disable_eager_loads)
             count_query = count_query.options(sa.orm.lazyload("*"))
-            count_query = self._prepare_db_query(count_query, search_query, False)
+            count_query = self._prepare_db_query(
+                count_query, search_query, False
+            )
             count_statement = count_query.statement.with_only_columns(
                 [sa.func.count()]
             ).order_by(None)
@@ -213,9 +208,7 @@ class Executor:
                         _format_dict_keys(self.config.sort_columns),
                     )
                 )
-            column, default_order = self.config.sort_columns[
-                sort_token.name
-            ]
+            column, default_order = self.config.sort_columns[sort_token.name]
             order = _get_order(sort_token.order, default_order)
             if order == sort_token.SORT_ASC:
                 db_query = db_query.order_by(column.asc())
