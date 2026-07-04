@@ -27,10 +27,18 @@ class BaseSearchConfig:
     def finalize_query(self, query: SaQuery) -> SaQuery:
         return query
 
-    def group_query(self, query: SaQuery) -> Optional[SaQuery]:
-        # override to collapse composite entities (e.g. post stacks) into a
-        # query selecting one "repr_id" column per group; None = no grouping
-        return None
+    def should_group(self, query: SaQuery) -> bool:
+        # return True to collapse composite entities (e.g. post stacks)
+        # into one representative row per group; False = no grouping
+        return False
+
+    def group_filter(self, query: SaQuery) -> SaQuery:
+        # restrict a query to one representative row per group
+        return query
+
+    def group_count(self, query: SaQuery) -> int:
+        # count the rows of a filtered query after group dedup
+        raise NotImplementedError()
 
     @property
     def id_column(self) -> SaColumn:
