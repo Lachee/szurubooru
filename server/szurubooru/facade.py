@@ -143,6 +143,13 @@ def create_app() -> Callable[[Any, Any], Any]:
     if config.config["show_sql"]:
         logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
+    # SQLAlchemy configures its mappers and opens its first DB connection
+    # lazily, on whichever query happens to run first. Doing both eagerly
+    # here means that one-time cost lands on server startup instead of on
+    # the first user request.
+    sa.orm.configure_mappers()
+    db.session.execute(sa.text("SELECT 1"))
+
     threading.Thread(target=purge_old_uploads_daemon, daemon=True).start()
 
     for migration in _live_migrations:

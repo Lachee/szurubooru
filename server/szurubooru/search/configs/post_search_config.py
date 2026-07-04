@@ -199,6 +199,7 @@ class PostSearchConfig(BaseSearchConfig):
             sa.orm.defer(model.Post.note_count),
             sa.orm.defer(model.Post.tag_count),
             strategy(model.Post.tags).subqueryload(model.Tag.names),
+            strategy(model.Post.tags).subqueryload(model.Tag.category),
             strategy(model.Post.tags).defer(model.Tag.post_count),
             strategy(model.Post.tags).lazyload(model.Tag.implications),
             strategy(model.Post.tags).lazyload(model.Tag.suggestions),
