@@ -36,11 +36,14 @@ def _serialize_post(
     post: Optional[model.Post],
     stacks_cache: Optional[Dict[int, List[model.Post]]] = None,
 ) -> rest.Response:
+    kwargs = {}
+    if stacks_cache is not None:
+        kwargs["stacks_cache"] = stacks_cache
     return posts.serialize_post(
         post,
         ctx.user,
         options=serialization.get_serialization_options(ctx),
-        stacks_cache=stacks_cache,
+        **kwargs,
     )
 
 
