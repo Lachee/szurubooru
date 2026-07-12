@@ -34,6 +34,7 @@ class PostUploadController {
         const viewCtx = {
             canUploadAnonymously: api.hasPrivilege("posts:create:anonymous"),
             canViewPosts: api.hasPrivilege("posts:view"),
+            canCreateStacks: api.hasPrivilege("post-stacks:create"),
             enableSafety: api.safetyEnabled(),
         };
 
@@ -91,7 +92,8 @@ class PostUploadController {
                         this._uploadSinglePost(
                             uploadable,
                             e.detail.skipDuplicates,
-                            e.detail.alwaysUploadSimilar
+                            e.detail.alwaysUploadSimilar,
+                            e.detail.stackSimilar
                         ).catch((error) => {
                             anyFailures = true;
                             if (error.uploadable) {
@@ -149,7 +151,12 @@ class PostUploadController {
             );
     }
 
-    _uploadSinglePost(uploadable, skipDuplicates, alwaysUploadSimilar) {
+    _uploadSinglePost(
+        uploadable,
+        skipDuplicates,
+        alwaysUploadSimilar,
+        stackSimilar
+    ) {
         progress.start();
         let reverseSearchPromise = Promise.resolve();
         if (!uploadable.lookalikesConfirmed) {
@@ -161,6 +168,7 @@ class PostUploadController {
 
         return reverseSearchPromise
             .then((searchResult) => {
+                let similarPosts = [];
                 if (searchResult) {
                     // notify about exact duplicate
                     if (searchResult.exactPost) {
@@ -177,17 +185,21 @@ class PostUploadController {
                         }
                     }
 
-                    // notify about similar posts
+                    similarPosts = searchResult.similarPosts;
+
+                    // notify about similar posts, unless the user opted to
+                    // force upload them or automatically stack them
                     if (
-                        searchResult.similarPosts.length &&
-                        !alwaysUploadSimilar
+                        similarPosts.length &&
+                        !alwaysUploadSimilar &&
+                        !stackSimilar
                     ) {
                         let error = new Error(
-                            `Found ${searchResult.similarPosts.length} similar ` +
+                            `Found ${similarPosts.length} similar ` +
                                 "posts.\nYou can resume or discard this upload."
                         );
                         error.uploadable = uploadable;
-                        error.similarPosts = searchResult.similarPosts;
+                        error.similarPosts = similarPosts;
                         return Promise.reject(error);
                     }
                 }
@@ -197,6 +209,10 @@ class PostUploadController {
                 let savePromise = post.save(uploadable.anonymous)
                     .then(() => this._targetPool
                         ? this._addPostToPool(post.id)
+                        : Promise.resolve()
+                    )
+                    .then(() => stackSimilar && similarPosts.length
+                        ? this._stackWithSimilarPosts(post.id, similarPosts)
                         : Promise.resolve()
                     )
                     .then(() => {
@@ -216,6 +232,22 @@ class PostUploadController {
                     return Promise.reject(error);
                 }
             );
+    }
+
+    _stackWithSimilarPosts(postId, similarPosts) {
+        // if any of the similar posts already belongs to a stack, append the
+        // new post to it; otherwise create a fresh stack containing them all
+        const stackedSimilar = similarPosts.find((s) => s.post.stackId);
+        if (stackedSimilar) {
+            const stackId = stackedSimilar.post.stackId;
+            const ids = stackedSimilar.post.stacked.map((s) => s.id);
+            return api.put(uri.formatApiLink("post-stack", stackId), {
+                posts: [...ids, postId],
+            });
+        }
+        return api.post(uri.formatApiLink("post-stacks"), {
+            posts: [postId, ...similarPosts.map((s) => s.post.id)],
+        });
     }
 
     _addPostToPool(postId) {
