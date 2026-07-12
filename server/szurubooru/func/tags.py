@@ -136,6 +136,31 @@ class TagSerializer(serialization.BaseSerializer):
         ]
 
 
+def populate_post_counts(tag_list: List[model.Tag]) -> None:
+    # batches the usage counts of the given tags and their suggestions/
+    # implications into one query, instead of one deferred-column load
+    # per tag when serializers read tag.post_count
+    tag_map = {}  # type: Dict[int, model.Tag]
+    for tag in tag_list:
+        tag_map[tag.tag_id] = tag
+        for relation in list(tag.suggestions) + list(tag.implications):
+            tag_map[relation.tag_id] = relation
+    if not tag_map:
+        return
+    counts = dict(
+        db.session.query(
+            model.PostTag.tag_id, sa.func.count(model.PostTag.post_id)
+        )
+        .filter(model.PostTag.tag_id.in_(tag_map.keys()))
+        .group_by(model.PostTag.tag_id)
+        .all()
+    )
+    for tag_id, tag in tag_map.items():
+        sa.orm.attributes.set_committed_value(
+            tag, "post_count", counts.get(tag_id, 0)
+        )
+
+
 def serialize_tag(
     tag: model.Tag, options: List[str] = []
 ) -> Optional[rest.Response]:

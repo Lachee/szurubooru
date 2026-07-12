@@ -60,7 +60,16 @@ class CommentSerializer(serialization.BaseSerializer):
         return self.comment.score
 
     def serialize_own_score(self) -> Any:
-        return scores.get_score(self.comment, self.auth_user)
+        # the scores collection is eagerly loaded with every comment, so
+        # scanning it avoids one extra query per serialized comment
+        return next(
+            (
+                cs.score
+                for cs in self.comment.scores
+                if cs.user_id == self.auth_user.user_id
+            ),
+            0,
+        )
 
 
 def serialize_comment(

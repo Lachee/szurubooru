@@ -40,6 +40,9 @@ def delete_score(entity: model.Base, user: model.User) -> None:
 def get_score(entity: model.Base, user: model.User) -> int:
     assert entity
     assert user
+    # anonymous users can't have cast a vote; skip the query
+    if user.user_id is None:
+        return 0
     table, get_column = _get_table_info(entity)
     row = (
         db.session.query(table.score)

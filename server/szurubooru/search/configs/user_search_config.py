@@ -13,7 +13,14 @@ from szurubooru.search.typing import SaColumn, SaQuery
 
 class UserSearchConfig(BaseSearchConfig):
     def create_filter_query(self, _disable_eager_loads: bool) -> SaQuery:
-        return db.session.query(model.User)
+        # these counts are serialized for every listed user, so compute
+        # them inline instead of one deferred load per user each
+        # (liked/disliked stay deferred - they're only shown to yourself)
+        return db.session.query(model.User).options(
+            sa.orm.undefer(model.User.post_count),
+            sa.orm.undefer(model.User.comment_count),
+            sa.orm.undefer(model.User.favorite_post_count),
+        )
 
     def create_count_query(self, _disable_eager_loads: bool) -> SaQuery:
         return db.session.query(model.User)

@@ -38,62 +38,41 @@ class User(Base):
 
     comments = sa.orm.relationship("Comment")
 
-    @property
-    def post_count(self) -> int:
-        from szurubooru.db import session
-
-        return (
-            session.query(sa.sql.expression.func.sum(1))
-            .filter(Post.user_id == self.user_id)
-            .one()[0]
-            or 0
-        )
-
-    @property
-    def comment_count(self) -> int:
-        from szurubooru.db import session
-
-        return (
-            session.query(sa.sql.expression.func.sum(1))
-            .filter(Comment.user_id == self.user_id)
-            .one()[0]
-            or 0
-        )
-
-    @property
-    def favorite_post_count(self) -> int:
-        from szurubooru.db import session
-
-        return (
-            session.query(sa.sql.expression.func.sum(1))
-            .filter(PostFavorite.user_id == self.user_id)
-            .one()[0]
-            or 0
-        )
-
-    @property
-    def liked_post_count(self) -> int:
-        from szurubooru.db import session
-
-        return (
-            session.query(sa.sql.expression.func.sum(1))
-            .filter(PostScore.user_id == self.user_id)
-            .filter(PostScore.score == 1)
-            .one()[0]
-            or 0
-        )
-
-    @property
-    def disliked_post_count(self) -> int:
-        from szurubooru.db import session
-
-        return (
-            session.query(sa.sql.expression.func.sum(1))
-            .filter(PostScore.user_id == self.user_id)
-            .filter(PostScore.score == -1)
-            .one()[0]
-            or 0
-        )
+    # deferred column properties instead of python properties issuing one
+    # query per access - list queries can undefer these to compute every
+    # user's counts inline in a single statement
+    post_count = sa.orm.column_property(
+        sa.sql.expression.select([sa.sql.expression.func.count(1)])
+        .where(Post.user_id == user_id)
+        .as_scalar(),
+        deferred=True,
+    )
+    comment_count = sa.orm.column_property(
+        sa.sql.expression.select([sa.sql.expression.func.count(1)])
+        .where(Comment.user_id == user_id)
+        .as_scalar(),
+        deferred=True,
+    )
+    favorite_post_count = sa.orm.column_property(
+        sa.sql.expression.select([sa.sql.expression.func.count(1)])
+        .where(PostFavorite.user_id == user_id)
+        .as_scalar(),
+        deferred=True,
+    )
+    liked_post_count = sa.orm.column_property(
+        sa.sql.expression.select([sa.sql.expression.func.count(1)])
+        .where(PostScore.user_id == user_id)
+        .where(PostScore.score == 1)
+        .as_scalar(),
+        deferred=True,
+    )
+    disliked_post_count = sa.orm.column_property(
+        sa.sql.expression.select([sa.sql.expression.func.count(1)])
+        .where(PostScore.user_id == user_id)
+        .where(PostScore.score == -1)
+        .as_scalar(),
+        deferred=True,
+    )
 
     __mapper_args__ = {
         "version_id_col": version,

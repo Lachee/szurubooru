@@ -1,6 +1,5 @@
 import sqlalchemy as sa
 
-from szurubooru.db import get_session
 from szurubooru.model.base import Base
 
 
@@ -55,7 +54,8 @@ class Comment(Base):
     last_edit_time = sa.Column("last_edit_time", sa.DateTime)
     text = sa.Column("text", sa.UnicodeText, default=None)
 
-    user = sa.orm.relationship("User")
+    # comments are always serialized together with their author
+    user = sa.orm.relationship("User", lazy="joined")
     post = sa.orm.relationship("Post")
     scores = sa.orm.relationship(
         "CommentScore", cascade="all, delete-orphan", lazy="joined"
@@ -63,13 +63,9 @@ class Comment(Base):
 
     @property
     def score(self) -> int:
-        return (
-            get_session()
-            .query(sa.sql.expression.func.sum(CommentScore.score))
-            .filter(CommentScore.comment_id == self.comment_id)
-            .one()[0]
-            or 0
-        )
+        # the scores collection is eagerly loaded with every comment, so
+        # summing it here avoids one extra query per serialized comment
+        return sum(cs.score for cs in self.scores)
 
     __mapper_args__ = {
         "version_id_col": version,

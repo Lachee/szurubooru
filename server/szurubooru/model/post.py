@@ -88,8 +88,11 @@ class PostFavorite(Base):
     time = sa.Column("time", sa.DateTime, nullable=False)
 
     post = sa.orm.relationship("Post")
+    # favorites are always serialized together with their user, so load
+    # them in one query instead of one lazy load per favorite
     user = sa.orm.relationship(
         "User",
+        lazy="joined",
         backref=sa.orm.backref("post_favorites", cascade="all, delete-orphan"),
     )
 
@@ -249,25 +252,29 @@ class Post(Base):
         cascade="all, delete, delete-orphan",
         lazy="joined",
     )
+    # the collections below intentionally use the default lazy "select"
+    # loading: with lazy="joined", loading a single post multiplied the
+    # result rows by the CARTESIAN PRODUCT of every collection's size
+    # (a post with 500 favorites and 300 scores fetched 150k+ rows),
+    # while each collection is only read on a handful of code paths
     relations = sa.orm.relationship(
         "Post",
         secondary="post_relation",
         primaryjoin=post_id == PostRelation.parent_id,
         secondaryjoin=post_id == PostRelation.child_id,
-        lazy="joined",
         backref="related_by",
     )
     features = sa.orm.relationship(
-        "PostFeature", cascade="all, delete-orphan", lazy="joined"
+        "PostFeature", cascade="all, delete-orphan"
     )
     scores = sa.orm.relationship(
-        "PostScore", cascade="all, delete-orphan", lazy="joined"
+        "PostScore", cascade="all, delete-orphan"
     )
     favorited_by = sa.orm.relationship(
-        "PostFavorite", cascade="all, delete-orphan", lazy="joined"
+        "PostFavorite", cascade="all, delete-orphan"
     )
     notes = sa.orm.relationship(
-        "PostNote", cascade="all, delete-orphan", lazy="joined"
+        "PostNote", cascade="all, delete-orphan"
     )
     comments = sa.orm.relationship("Comment", cascade="all, delete-orphan")
     _pools = sa.orm.relationship(
