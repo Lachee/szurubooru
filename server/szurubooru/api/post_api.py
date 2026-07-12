@@ -47,6 +47,24 @@ def _serialize_post(
     )
 
 
+def _build_stacks_cache(
+    post_list: List[model.Post],
+) -> Dict[int, List[model.Post]]:
+    stack_ids = {p.stack_id for p in post_list if p.stack_id is not None}
+    if not stack_ids:
+        return {}
+    members = (
+        db.session.query(model.Post)
+        .filter(model.Post.stack_id.in_(stack_ids))
+        .order_by(model.Post.stack_order)
+        .all()
+    )
+    result: Dict[int, List[model.Post]] = {}
+    for p in members:
+        result.setdefault(p.stack_id, []).append(p)
+    return result
+
+
 @rest.routes.get("/posts/?")
 def get_posts(
     ctx: rest.Context, _params: Dict[str, str] = {}
