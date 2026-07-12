@@ -21,6 +21,16 @@
                 }) %>
             </span>
 
+            <% if (ctx.canCreateStacks) { %>
+                <span class='stack-similar'>
+                    <%= ctx.makeCheckbox({
+                        text: 'Stack similar',
+                        name: 'stack-similar',
+                        checked: false,
+                    }) %>
+                </span>
+            <% } %>
+
             <span class='pause-remain-on-error'>
                 <%= ctx.makeCheckbox({
                     text: 'Pause on error',

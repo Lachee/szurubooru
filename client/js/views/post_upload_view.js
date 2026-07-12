@@ -364,6 +364,9 @@ class PostUploadView extends events.EventTarget {
                     skipDuplicates: this._skipDuplicatesCheckboxNode.checked,
                     alwaysUploadSimilar:
                         this._alwaysUploadSimilarCheckboxNode.checked,
+                    stackSimilar: this._stackSimilarCheckboxNode
+                        ? this._stackSimilarCheckboxNode.checked
+                        : false,
                     pauseRemainOnError:
                         this._pauseRemainOnErrorCheckboxNode.checked,
                 },
@@ -433,6 +436,10 @@ class PostUploadView extends events.EventTarget {
         return this._hostNode.querySelector(
             "form [name=always-upload-similar]"
         );
+    }
+
+    get _stackSimilarCheckboxNode() {
+        return this._hostNode.querySelector("form [name=stack-similar]");
     }
 
     get _pauseRemainOnErrorCheckboxNode() {

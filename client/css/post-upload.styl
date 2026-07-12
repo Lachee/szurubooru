@@ -14,10 +14,12 @@ $cancel-button-color = tomato
         &.inactive input[type=submit],
         &.inactive .skip-duplicates
         &.inactive .always-upload-similar
+        &.inactive .stack-similar
         &.inactive .pause-remain-on-error
         &.uploading input[type=submit],
         &.uploading .skip-duplicates,
         &.uploading .always-upload-similar
+        &.uploading .stack-similar
         &.uploading .pause-remain-on-error
         &:not(.uploading) .cancel
             display: none
@@ -44,6 +46,9 @@ $cancel-button-color = tomato
         margin-left: 1em
 
     .always-upload-similar
+        margin-left: 1em
+
+    .stack-similar
         margin-left: 1em
 
     .pause-remain-on-error
