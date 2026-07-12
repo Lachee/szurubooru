@@ -1,6 +1,7 @@
 from typing import List
 
 import sqlalchemy as sa
+import sqlalchemy.dialects.postgresql  # noqa: F401  registers sa.dialects.postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.orderinglist import ordering_list
